@@ -14,6 +14,7 @@
 // `t(key, params)` y `nameOf(id)` son opcionales (por defecto, textos en español).
 
 import { nodesById } from './route.js';
+import { videoPace } from './route-progress.js';
 
 const DEFAULT_TEXTS = {
   segment: 'Tramo {i}/{n}: {from} → {to}',
@@ -24,7 +25,7 @@ const DEFAULT_TEXTS = {
 const defaultT = (key, params = {}) =>
   (DEFAULT_TEXTS[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
 
-export function createPlayer({ container, overlay, graph, onSegment, onFinish, t = defaultT, nameOf } = {}) {
+export function createPlayer({ container, overlay, graph, onSegment, onFinish, t = defaultT, nameOf, getRouteProgress } = {}) {
   const byId = nodesById(graph);
   nameOf ??= (id) => byId.get(id)?.name ?? id;
   let overlayText = null; // función que arma el texto actual del overlay
@@ -35,6 +36,10 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
   let queue = [];
   let index = -1;  // tramo que se está mostrando
   let active = 0;  // posición en `els` del video visible
+  let motionControlled = false;
+  let moving = false;
+  let playAttempt = 0;
+  const failedVideos = new WeakSet();
 
   function makeVideo() {
     const v = document.createElement('video');
@@ -45,21 +50,29 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
     v.preload = 'auto';
     v.hidden = true;
     v.className = 'route-video';
-    v.addEventListener('ended', () => isCurrent(v) && advance());
+    v.addEventListener('ended', () => {
+      if (isCurrent(v) && !(motionControlled && getRouteProgress)) advance();
+    });
+    for (const event of ['loadedmetadata', 'timeupdate']) {
+      v.addEventListener(event, () => {
+        if (isCurrent(v) && motionControlled && getRouteProgress) syncPlayback();
+      });
+    }
     v.addEventListener('error', () => {
       if (!isCurrent(v)) return; // error en el precargado: se revisa al mostrarlo
-      console.warn('Clip con error, se salta:', v.currentSrc || v.src);
-      advance();
+      reportFailure(v);
     });
     return v;
   }
 
   function isCurrent(v) {
-    return v === els[active] && Number(v.dataset.seg) === index;
+    return index >= 0 && index < queue.length && v === els[active] && Number(v.dataset.seg) === index;
   }
 
   function load(v, i) {
+    failedVideos.delete(v);
     v.dataset.seg = String(i);
+    v.playbackRate = 1;
     if (i < queue.length) {
       v.src = queue[i].video;
     } else {
@@ -89,15 +102,76 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
     onSegment?.(index, e);
 
     if (v.error) {
-      console.warn('Clip con error, se salta:', e.video);
+      reportFailure(v);
+      return;
+    }
+    syncPlayback();
+  }
+
+  function reportFailure(v) {
+    if (!failedVideos.has(v)) console.warn('Clip con error:', v.currentSrc || v.src);
+    failedVideos.add(v);
+    syncPlayback();
+  }
+
+  function syncPlayback() {
+    const v = els[active];
+    if (!isCurrent(v)) return;
+    const paced = motionControlled && getRouteProgress;
+    const progress = paced ? getRouteProgress(index) : null;
+    const failed = failedVideos.has(v);
+    if (progress?.arrived && (failed || Number.isFinite(v.duration))) {
+      v.pause();
+      if (!failed && !v.ended) v.currentTime = v.duration;
       advance();
       return;
     }
+    if (failed) {
+      if (!paced) advance();
+      return;
+    }
+    const pace = paced ? videoPace(progress, v.duration, v.currentTime) : null;
+    if ((motionControlled && !moving) || (paced && (!pace || pace.hold || v.ended))) {
+      playAttempt += 1;
+      if (!v.paused) v.pause();
+      return;
+    }
+    if (pace) {
+      if (Math.abs(v.playbackRate - pace.rate) >= .01) {
+        try {
+          v.playbackRate = pace.rate;
+        } catch {
+          // Algunos navegadores limitan las tasas. El límite de progreso sigue activo.
+          v.playbackRate = 1;
+        }
+      }
+    } else {
+      v.playbackRate = 1;
+      if (v.ended) {
+        advance();
+        return;
+      }
+    }
+    if (!v.paused) return;
+    const attempt = ++playAttempt;
     v.play().catch((err) => {
-      if (err.name === 'NotSupportedError') advance();
+      if (attempt !== playAttempt || !isCurrent(v)) return;
+      if (err.name === 'NotSupportedError') reportFailure(v);
       else if (err.name === 'NotAllowedError') setOverlay(() => t('tapToPlay'));
       // AbortError: se cambió de clip antes de empezar, se ignora
     });
+  }
+
+  function setMotionControl(enabled) {
+    if (motionControlled === enabled) return;
+    motionControlled = enabled;
+    syncPlayback();
+  }
+
+  function setMoving(value) {
+    if (moving === value) return;
+    moving = value;
+    if (motionControlled) syncPlayback();
   }
 
   function advance() {
@@ -136,6 +210,7 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
   }
 
   function stop() {
+    playAttempt += 1;
     queue = [];
     index = -1;
     for (const v of els) {
@@ -148,10 +223,12 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
   }
 
   // Si el navegador bloqueó el autoplay, un toque lo reanuda
-  container.addEventListener('click', () => {
-    const v = els[active];
-    if (index >= 0 && index < queue.length && v.paused) v.play().catch(() => {});
-  });
+  container.addEventListener('click', syncPlayback);
 
-  return { play, stop, refresh, get index() { return index; } };
+  return {
+    play, stop, refresh, setMotionControl, setMoving,
+    refreshPace() { if (motionControlled && getRouteProgress) syncPlayback(); },
+    isMotionControlled: () => motionControlled,
+    get index() { return index; },
+  };
 }

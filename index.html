@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>Cómo llegar · Campus Casa Central USM</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
         integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
   <link rel="stylesheet" href="styles.css">
@@ -38,8 +39,38 @@
         <button type="submit" id="go" class="go" disabled data-i18n="go">Ir</button>
       </form>
 
+      <label id="recording-picker" class="recording-picker" hidden>
+        <span data-i18n="recordedLegs">Tramos grabados</span>
+        <select id="recording"></select>
+      </label>
+
       <p id="geo-message" class="message geo-message" role="status"></p>
       <p id="message" class="message" role="status"></p>
+
+      <div class="motion-controls">
+        <label class="motion-switch">
+          <input id="motion-control" type="checkbox" role="switch" autocomplete="off" aria-describedby="motion-status">
+          <span data-i18n="motionControl">Reproducción automática por movimiento</span>
+        </label>
+        <p id="motion-status" class="motion-status" role="status" hidden></p>
+        <p id="motion-progress" class="motion-status" hidden></p>
+      </div>
+
+      <fieldset id="mock-gps" class="mock-gps" hidden>
+        <legend data-i18n="mockGps">GPS simulado</legend>
+        <div class="mock-actions">
+          <button id="mock-move" type="button" data-i18n="mockMove">Mover</button>
+          <button id="mock-stop" type="button" data-i18n="mockStop" disabled>Detener</button>
+          <label>
+            <span data-i18n="mockSpeed">Velocidad</span>
+            <select id="mock-speed">
+              <option value="1.2" data-i18n="mockSlow">Baja</option>
+              <option value="2.4" data-i18n="mockNormal" selected>Normal</option>
+              <option value="4.8" data-i18n="mockFast">Rápida</option>
+            </select>
+          </label>
+        </div>
+      </fieldset>
 
       <div id="player" class="player">
         <div id="overlay" class="overlay"></div>

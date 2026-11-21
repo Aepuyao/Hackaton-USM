@@ -123,6 +123,13 @@ select {
 .geo-message { min-height: 0; color: #1a5fb4; }
 .geo-message:empty { display: none; }
 
+.recording-picker {
+  font-size: .9rem;
+  font-weight: 600;
+  color: var(--navy);
+}
+.recording-picker select { margin-top: .25rem; font-weight: 400; }
+
 /* ---------- Ubicación del usuario ---------- */
 .me {
   width: 16px;
@@ -254,3 +261,65 @@ select {
     padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
   }
 }
+
+/* ---------- Control por movimiento ---------- */
+.motion-controls {
+  padding: .65rem .75rem;
+  border: 1px solid #dde3ea;
+  border-radius: var(--radius);
+}
+
+.motion-switch {
+  display: flex;
+  align-items: center;
+  gap: .65rem;
+  min-height: 2rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.motion-switch input {
+  appearance: none;
+  width: 2.5rem;
+  height: 1.4rem;
+  margin: 0;
+  flex: none;
+  border: 2px solid transparent;
+  border-radius: 1rem;
+  background: var(--muted);
+  cursor: pointer;
+}
+
+.motion-switch input::before {
+  content: '';
+  display: block;
+  width: 1rem;
+  height: 1rem;
+  margin: 1px;
+  border-radius: 50%;
+  background: #fff;
+}
+
+.motion-switch input:checked { background: var(--navy); }
+.motion-switch input:checked::before { transform: translateX(1rem); }
+.motion-switch input:focus-visible { outline: 2px solid var(--navy); outline-offset: 3px; }
+
+.motion-status { margin: .35rem 0 0; font-size: .9rem; color: var(--muted); }
+.motion-status[data-state="motionMoving"] { color: #166534; }
+.motion-status[data-state="motionStopped"] { color: #92400e; }
+
+.mock-gps { margin: 0; min-width: 0; border: 1px solid #dde3ea; border-radius: var(--radius); }
+.mock-gps legend { padding: 0 .25rem; color: var(--navy); font-weight: 600; }
+.mock-actions { display: flex; flex-wrap: wrap; align-items: end; gap: .5rem; }
+.mock-actions label { display: grid; gap: .2rem; font-size: .9rem; }
+.mock-actions button, .mock-actions select {
+  min-height: 2.65rem;
+  padding: .45rem .65rem;
+  border: 1px solid #c5cfda;
+  border-radius: 8px;
+  color: var(--navy);
+  font: inherit;
+  background: #fff;
+}
+.mock-actions button { cursor: pointer; }
+.mock-actions button:disabled { opacity: .55; cursor: default; }
