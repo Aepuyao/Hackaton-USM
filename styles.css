@@ -121,6 +121,19 @@ select {
 .message { margin: 0; min-height: 1.2em; color: var(--muted); font-size: .95rem; }
 .message.error { color: #b3261e; }
 .geo-message { min-height: 0; color: #1a5fb4; }
+
+/* ¿La ruta tiene escaleras? */
+.stairs-info {
+  margin: 0;
+  padding: .45rem .7rem;
+  border-radius: 8px;
+  font-size: .92rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+.stairs-info.yes { background: #fff4e5; border-color: #f5c07a; color: #8a4b00; }
+.stairs-info.no  { background: #e8f5ec; border-color: #9fd3ae; color: #1e6b34; }
+.steps li.has-stairs .secs { color: #8a4b00; opacity: 1; }
 .geo-message:empty { display: none; }
 
 .recording-picker {

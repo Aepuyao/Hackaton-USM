@@ -308,12 +308,19 @@ def main():
 
     print(f"\n{len(kept)} tramos → {2 * len(kept)} videos (ida y vuelta)")
 
-    # 4. Aristas
+    # 4. Aristas. Los campos agregados a mano (p. ej. "recorded", "stairs") se
+    #    conservan de la versión anterior de graph.json; solo se regeneran los de GENERATED.
+    GENERATED = {"from", "to", "video", "seconds", "path"}
+    manual = {(e["from"], e["to"]): {k: v for k, v in e.items() if k not in GENERATED}
+              for e in json.loads(GRAPH.read_text())["edges"]}
     edges = []
     for (a, b), (pts, length, src) in sorted(kept.items()):
         secs = max(5, round(length / WALK_SPEED))
         for x, y, p in ((a, b, pts), (b, a, pts[::-1])):
-            e = {"from": x, "to": y, "video": f"videos/{x}__{y}.mp4", "seconds": secs}
+            e = {"from": x, "to": y, "video": f"videos/{x}__{y}.mp4"}
+            e.update(manual.get((x, y), {}))
+            e.setdefault("stairs", False)  # tramo nuevo: sin escaleras hasta que se marque
+            e["seconds"] = secs
             if src == "osm":
                 e["path"] = [[round(q[0], 6), round(q[1], 6)] for q in p]
             edges.append(e)

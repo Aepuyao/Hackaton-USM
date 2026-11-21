@@ -50,6 +50,9 @@ for (const edge of edges) {
     problems.push(`Arista ${k}: seconds debe ser un número > 0`);
   }
 
+  if (edge.stairs === undefined) warnings.push(`Arista ${k}: falta "stairs" (true/false)`);
+  else if (typeof edge.stairs !== 'boolean') problems.push(`Arista ${k}: "stairs" debe ser true o false`);
+
   if (edge.path !== undefined) {
     const ok = Array.isArray(edge.path) && edge.path.length >= 2 &&
       edge.path.every((p) => Array.isArray(p) && p.length === 2 && p.every((x) => typeof x === 'number'));

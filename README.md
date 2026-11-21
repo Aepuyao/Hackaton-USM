@@ -88,7 +88,10 @@ forzar con `?lang=en`, `?lang=fr` o `?lang=de`.
 **Los nodos (landmarks) se editan a mano en `graph.json`; las aristas las genera
 `tools/build-walk-paths.py`** a partir de la red peatonal de OpenStreetMap
 (`tools/osm-ways.json`). Solo conecta landmarks vecinos: si el camino de X a Y pasa
-cerca de Z, la ruta va X → Z → Y. Después de agregar o mover un nodo:
+cerca de Z, la ruta va X → Z → Y. Los campos que se agregan a mano en una arista
+(`"stairs": true/false`, `"recorded": true`) se conservan al regenerar; `stairs` marca si el
+tramo tiene escaleras y la app avisa "Esta ruta tiene escaleras" / "Ruta sin escaleras".
+Después de agregar o mover un nodo:
 
 ```bash
 python3 tools/build-walk-paths.py  # regenera aristas (path + seconds)

@@ -29,6 +29,7 @@ const els = {
   go: $('go'),
   message: $('message'),
   geoMessage: $('geo-message'),
+  stairsInfo: $('stairs-info'),
   player: $('player'),
   overlay: $('overlay'),
   playerEmpty: $('player-empty'),
@@ -350,10 +351,28 @@ function renderSteps() {
     ));
   }
   for (const e of currentEdges) {
-    items.push(stepItem(`${nameOf(e.from)} → ${nameOf(e.to)}`, `${e.seconds} s`));
+    const detail = e.stairs ? `${e.seconds} s · 🪜 ${t('stairs')}` : `${e.seconds} s`;
+    items.push(stepItem(`${nameOf(e.from)} → ${nameOf(e.to)}`, detail, e.stairs ? 'has-stairs' : ''));
   }
   els.steps.replaceChildren(...items);
   updateStepClasses();
+  renderStairs();
+}
+
+// Apartado "¿La ruta tiene escaleras?" según el campo `stairs` de cada arista
+function renderStairs() {
+  const box = els.stairsInfo;
+  if (currentEdges.length === 0) {
+    box.hidden = true;
+    return;
+  }
+  const n = currentEdges.filter((e) => e.stairs).length;
+  box.hidden = false;
+  box.classList.toggle('yes', n > 0);
+  box.classList.toggle('no', n === 0);
+  box.textContent = n > 0
+    ? `🪜 ${t('stairsYes', { n, total: currentEdges.length })}`
+    : `✓ ${t('stairsNo')}`;
 }
 
 function updateStepClasses() {
@@ -436,6 +455,7 @@ els.form.addEventListener('submit', (ev) => {
     routeFromMe = null;
     drawGuide();
     els.steps.replaceChildren();
+    renderStairs();
     showMessage(() => t('noRoute'), true);
     return;
   }
