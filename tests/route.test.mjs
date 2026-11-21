@@ -1,7 +1,7 @@
 // Tests de Dijkstra (L2). Correr con: node --test tests/
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { route, pathNodes, totalSeconds } from '../js/route.js';
+import { route, pathNodes, totalSeconds, nearestNode, distanceMeters } from '../js/route.js';
 
 const e = (from, to, seconds) => ({ from, to, seconds, video: `videos/${from}__${to}.mp4` });
 const n = (id) => ({ id, name: id, lat: 0, lng: 0 });
@@ -41,6 +41,25 @@ test('sin camino → null', () => {
 
 test('id inexistente → null', () => {
   assert.equal(route(graph, 'a', 'nope'), null);
+});
+
+test('distanceMeters: ~111 m por milésima de grado de latitud', () => {
+  const d = distanceMeters(-33.035, -71.595, -33.036, -71.595);
+  assert.ok(Math.abs(d - 111.2) < 1, `dio ${d}`);
+});
+
+test('nearestNode elige el nodo más cercano', () => {
+  const g = {
+    nodes: [
+      { id: 'lejos', name: 'lejos', lat: -33.0400, lng: -71.5950 },
+      { id: 'cerca', name: 'cerca', lat: -33.0351, lng: -71.5951 },
+    ],
+    edges: [],
+  };
+  const r = nearestNode(g, -33.0350, -71.5950);
+  assert.equal(r.node.id, 'cerca');
+  assert.ok(r.meters < 20);
+  assert.equal(nearestNode({ nodes: [], edges: [] }, 0, 0), null);
 });
 
 test('mismo origen y destino → []', () => {

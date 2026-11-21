@@ -80,6 +80,27 @@ export function edgeLatLngs(graph, edge) {
   return [[a.lat, a.lng], [b.lat, b.lng]];
 }
 
+/** Distancia en metros entre dos puntos (haversine). */
+export function distanceMeters(lat1, lng1, lat2, lng2) {
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const dLat = (lat2 - lat1) * rad;
+  const dLng = (lng2 - lng1) * rad;
+  const h = Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+/** Nodo más cercano a (lat, lng): { node, meters }, o null si el grafo no tiene nodos. */
+export function nearestNode(graph, lat, lng) {
+  let best = null;
+  for (const node of graph.nodes) {
+    const meters = distanceMeters(lat, lng, node.lat, node.lng);
+    if (!best || meters < best.meters) best = { node, meters };
+  }
+  return best;
+}
+
 /** Duración total del camino en segundos. */
 export function totalSeconds(edges) {
   return (edges ?? []).reduce((s, e) => s + e.seconds, 0);

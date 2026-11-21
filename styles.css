@@ -103,6 +103,7 @@ select {
   cursor: pointer;
 }
 .swap:hover { background: var(--bg); }
+.swap:disabled { opacity: .4; cursor: not-allowed; }
 
 .go {
   grid-column: 1 / -1;
@@ -119,6 +120,29 @@ select {
 
 .message { margin: 0; min-height: 1.2em; color: var(--muted); font-size: .95rem; }
 .message.error { color: #b3261e; }
+.geo-message { min-height: 0; color: #1a5fb4; }
+.geo-message:empty { display: none; }
+
+/* ---------- Ubicación del usuario ---------- */
+.me {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #1a73e8;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px rgba(26, 115, 232, .4), 0 1px 4px rgba(0, 0, 0, .4);
+}
+.locate-btn {
+  width: 34px;
+  height: 34px;
+  font-size: 18px;
+  line-height: 1;
+  background: #fff;
+  cursor: pointer;
+  border: 2px solid rgba(0, 0, 0, .2);
+  border-radius: 4px;
+}
+.locate-btn:hover { background: #f4f4f4; }
 
 /* ---------- Reproductor ---------- */
 .player {
@@ -171,6 +195,7 @@ select {
 .steps li.done { color: var(--done); text-decoration: line-through; }
 .steps li.active { color: var(--text); font-weight: 700; }
 .steps li.active::marker { color: var(--accent); }
+.steps li.walk { color: #1a5fb4; font-style: italic; }
 
 /* ---------- Marcadores del mapa ---------- */
 .pin {

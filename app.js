@@ -1,11 +1,18 @@
 // UI: mapa (Leaflet), selector A→B, ruta, reproductor e idioma.
 // La lógica (Dijkstra y cola de videos) vive en js/route.js y js/player.js.
-import { loadGraph, nodesById, route, pathNodes, edgeLatLngs, totalSeconds } from './js/route.js';
+import {
+  loadGraph, nodesById, route, pathNodes, edgeLatLngs, totalSeconds, nearestNode, distanceMeters,
+} from './js/route.js';
 import { createPlayer } from './js/player.js';
 import { LANGS, initLang, getLang, setLang, onLangChange, t, nodeName, applyStatic } from './js/i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const COLORS = { pending: '#2f6fb3', active: '#f28c28', done: '#8a9bb0' };
+const ME = '__me'; // valor del origen "📍 Mi ubicación"
+
+// Estado de la ubicación (se llena en la sección "Ubicación del usuario")
+let lastFix = null;      // { lat, lng, nearest: { node, meters } } si está cerca del campus
+let routeFromMe = null;  // nodo al que se camina primero si la ruta parte desde la ubicación
 
 const els = {
   lang: $('lang'),
@@ -15,6 +22,7 @@ const els = {
   swap: $('swap'),
   go: $('go'),
   message: $('message'),
+  geoMessage: $('geo-message'),
   player: $('player'),
   overlay: $('overlay'),
   playerEmpty: $('player-empty'),
@@ -125,22 +133,27 @@ function fillSelects() {
   for (const select of [els.from, els.to]) {
     const value = select.value;
     const placeholder = select.options[0];
-    select.replaceChildren(placeholder, ...sorted.map((n) => new Option(nodeName(n), n.id)));
+    const extra = select === els.from ? [new Option(`📍 ${t('myLocation')}`, ME)] : [];
+    select.replaceChildren(placeholder, ...extra, ...sorted.map((n) => new Option(nodeName(n), n.id)));
     select.value = value;
   }
   syncSelects();
 }
 
-// No permitir A = B: la opción elegida en un select se desactiva en el otro
+// No permitir A = B: la opción elegida en un select se desactiva en el otro.
+// "Mi ubicación" solo se puede elegir si hay una ubicación cerca del campus.
 function syncSelects() {
   for (const [select, other] of [[els.from, els.to], [els.to, els.from]]) {
     for (const opt of select.options) {
-      opt.disabled = opt.value !== '' && opt.value === other.value;
+      opt.disabled = opt.value === ME
+        ? !lastFix
+        : opt.value !== '' && opt.value === other.value;
     }
   }
   const a = els.from.value;
   const b = els.to.value;
-  els.go.disabled = !a || !b || a === b;
+  els.go.disabled = !a || !b || a === b || (a === ME && !lastFix);
+  els.swap.disabled = a === ME; // "Mi ubicación" no puede ser destino
 }
 
 els.from.addEventListener('change', syncSelects);
@@ -167,7 +180,8 @@ const routeLayer = L.layerGroup().addTo(map);
 let segments = [];   // una polyline por tramo
 let hereMarker = null;
 let currentEdges = [];
-let activeIndex = -1; // tramo en reproducción; currentEdges.length = terminado
+let currentWalk = null; // { node, meters } tramo a pie desde la ubicación (sin video)
+let activeIndex = -1;   // tramo en reproducción; currentEdges.length = terminado
 
 const pinIcon = (letter, cls) => L.divIcon({
   className: '',
@@ -177,13 +191,16 @@ const pinIcon = (letter, cls) => L.divIcon({
 });
 const hereIcon = L.divIcon({ className: '', html: '<div class="here"></div>', iconSize: [18, 18], iconAnchor: [9, 9] });
 
-function drawRoute(edges) {
+// `fromHere`: [lat, lng] del usuario si la ruta parte desde su ubicación
+// (el tramo a pie lo dibuja la línea guía de la sección de ubicación).
+function drawRoute(edges, fromHere = null) {
   routeLayer.clearLayers();
   segments = [];
   hereMarker = null;
 
   const nodes = pathNodes(graph, edges);
   const latlngs = edges.flatMap((e) => edgeLatLngs(graph, e));
+  const bounds = L.latLngBounds(fromHere ? [fromHere, ...latlngs] : latlngs);
 
   // Borde blanco debajo para que la línea se lea sobre cualquier fondo
   L.polyline(latlngs, { color: '#fff', weight: 10, opacity: 0.9 }).addTo(routeLayer);
@@ -196,32 +213,50 @@ function drawRoute(edges) {
 
   const start = nodes[0];
   const end = nodes[nodes.length - 1];
-  L.marker([start.lat, start.lng], { icon: pinIcon('A', 'pin-a'), zIndexOffset: 500 })
-    .bindTooltip(() => nodeName(start)).addTo(routeLayer);
+  // Desde la ubicación, el punto azul del usuario hace de "A"
+  if (!fromHere) {
+    L.marker([start.lat, start.lng], { icon: pinIcon('A', 'pin-a'), zIndexOffset: 500 })
+      .bindTooltip(() => nodeName(start)).addTo(routeLayer);
+  }
   L.marker([end.lat, end.lng], { icon: pinIcon('B', 'pin-b'), zIndexOffset: 500 })
     .bindTooltip(() => nodeName(end)).addTo(routeLayer);
 
   hereMarker = L.marker([start.lat, start.lng], { icon: hereIcon, zIndexOffset: 1000, interactive: false })
     .addTo(routeLayer);
 
-  map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 19 });
+  map.fitBounds(bounds, { padding: [40, 40], maxZoom: 19 });
+}
+
+function stepItem(text, detail, cls) {
+  const li = document.createElement('li');
+  if (cls) li.className = cls;
+  li.append(`${text} `);
+  const span = document.createElement('span');
+  span.className = 'secs';
+  span.textContent = `(${detail})`;
+  li.appendChild(span);
+  return li;
 }
 
 function renderSteps() {
-  els.steps.replaceChildren(...currentEdges.map((e) => {
-    const li = document.createElement('li');
-    li.append(`${nameOf(e.from)} → ${nameOf(e.to)} `);
-    const secs = document.createElement('span');
-    secs.className = 'secs';
-    secs.textContent = `(${e.seconds} s)`;
-    li.appendChild(secs);
-    return li;
-  }));
+  const items = [];
+  if (currentWalk) {
+    items.push(stepItem(
+      `📍 ${t('youAreHere')} → ${nodeName(currentWalk.node)}`,
+      `~${Math.round(currentWalk.meters)} m · ${t('onFoot')}`,
+      'walk',
+    ));
+  }
+  for (const e of currentEdges) {
+    items.push(stepItem(`${nameOf(e.from)} → ${nameOf(e.to)}`, `${e.seconds} s`));
+  }
+  els.steps.replaceChildren(...items);
   updateStepClasses();
 }
 
 function updateStepClasses() {
-  [...els.steps.children].forEach((li, j) => {
+  const offset = currentWalk ? 1 : 0; // el tramo a pie no entra en el avance de videos
+  [...els.steps.children].slice(offset).forEach((li, j) => {
     li.classList.toggle('done', j < activeIndex);
     li.classList.toggle('active', j === activeIndex);
   });
@@ -258,23 +293,56 @@ els.form.addEventListener('submit', (ev) => {
   const b = els.to.value;
   if (!a || !b || a === b) return;
 
-  const edges = route(graph, a, b);
+  // Desde "Mi ubicación": primero se camina (sin video) al landmark más cercano
+  let start = a;
+  let walk = null;
+  let here = null;
+  if (a === ME) {
+    if (!lastFix) return;
+    walk = { node: lastFix.nearest.node, meters: lastFix.nearest.meters };
+    here = [lastFix.lat, lastFix.lng];
+    start = walk.node.id;
+  }
+  routeFromMe = walk ? walk.node : null;
+  drawGuide();
+
+  // El landmark más cercano ya es el destino: solo queda el tramo a pie
+  if (start === b) {
+    player.stop();
+    routeLayer.clearLayers();
+    currentEdges = [];
+    currentWalk = walk;
+    activeIndex = -1;
+    renderSteps();
+    els.playerEmpty.hidden = false;
+    const m = Math.round(walk.meters);
+    showMessage(() => t('walkToDest', { m, name: nodeName(walk.node) }));
+    map.fitBounds(L.latLngBounds([here, [walk.node.lat, walk.node.lng]]), { padding: [60, 60], maxZoom: 19 });
+    return;
+  }
+
+  const edges = route(graph, start, b);
   if (!edges) {
     player.stop();
     routeLayer.clearLayers();
     currentEdges = [];
+    currentWalk = null;
+    routeFromMe = null;
+    drawGuide();
     els.steps.replaceChildren();
     showMessage(() => t('noRoute'), true);
     return;
   }
 
   currentEdges = edges;
+  currentWalk = walk;
   activeIndex = -1;
-  const n = edges.length;
-  const min = Math.max(1, Math.round(totalSeconds(edges) / 60));
+  const n = edges.length + (walk ? 1 : 0);
+  const walkSeconds = walk ? (walk.meters * 1.3) / 1.2 : 0; // ~1,2 m/s, con algo de rodeo
+  const min = Math.max(1, Math.round((totalSeconds(edges) + walkSeconds) / 60));
   showMessage(() => t(n === 1 ? 'summaryOne' : 'summaryOther', { n, min }));
 
-  drawRoute(edges);
+  drawRoute(edges, here);
   renderSteps();
   els.playerEmpty.hidden = true;
   player.play(edges); // dentro del submit: cuenta como gesto del usuario (autoplay en celular)
@@ -285,12 +353,155 @@ els.form.addEventListener('submit', (ev) => {
   }
 });
 
+// ---------- Ubicación del usuario ----------
+// Al entrar se pide la ubicación: se marca al usuario, se busca el landmark más
+// cercano, se traza una línea directa hasta él y se deja como origen.
+const FAR_FROM_CAMPUS = 1500; // m: más lejos que esto no se dibuja la línea
+const AT_NODE = 15;           // m: a menos de esto se considera que ya está en el punto
+
+const geoLayer = L.layerGroup().addTo(map);
+let userMarker = null;
+let accuracyCircle = null;
+let guideLine = null;
+let geoWatch = null;
+let geoCentered = false;   // la vista se centra solo la primera vez (o al tocar 📍)
+let autoFrom = null;       // origen puesto automáticamente (se puede pisar al moverse)
+let geoText = null;
+
+function showGeo(fn) {
+  geoText = fn;
+  renderGeo();
+}
+function renderGeo() {
+  els.geoMessage.textContent = geoText ? geoText() : '';
+}
+
+const userIcon = L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
+
+function onPosition(pos) {
+  const here = [pos.coords.latitude, pos.coords.longitude];
+  const nearest = nearestNode(graph, here[0], here[1]);
+  if (!nearest) return;
+  const { node, meters } = nearest;
+
+  if (!userMarker) {
+    accuracyCircle = L.circle(here, {
+      radius: pos.coords.accuracy,
+      color: '#1a73e8', weight: 1, fillOpacity: 0.1, interactive: false,
+    }).addTo(geoLayer);
+    userMarker = L.marker(here, { icon: userIcon, zIndexOffset: 2000, keyboard: false })
+      .bindTooltip(() => t('youAreHere'))
+      .addTo(geoLayer);
+  } else {
+    userMarker.setLatLng(here);
+    accuracyCircle.setLatLng(here).setRadius(pos.coords.accuracy);
+  }
+
+  // Lejos del campus: solo avisar, sin línea ni "Mi ubicación" como origen
+  if (meters > FAR_FROM_CAMPUS) {
+    lastFix = null;
+    drawGuide();
+    syncSelects();
+    const km = meters / 1000;
+    showGeo(() => t('geoFar', {
+      km: new Intl.NumberFormat(getLang(), { maximumFractionDigits: 1 }).format(km),
+    }));
+    geoCentered = true;
+    return;
+  }
+
+  lastFix = { lat: here[0], lng: here[1], nearest };
+
+  // "Mi ubicación" como origen, salvo que el usuario ya haya elegido otro a mano
+  if (!els.from.value || els.from.value === autoFrom) {
+    els.from.value = ME;
+    autoFrom = ME;
+  }
+  syncSelects();
+  const target = drawGuide();
+
+  if (!geoCentered) {
+    map.fitBounds(L.latLngBounds([here, target]), { padding: [60, 60], maxZoom: 19 });
+    geoCentered = true;
+  }
+}
+
+// Línea punteada usuario → landmark: el inicio de la ruta activa si salió desde
+// "Mi ubicación", o si no el landmark más cercano. Devuelve el [lat, lng] destino.
+function drawGuide() {
+  if (!lastFix) {
+    guideLine?.remove();
+    guideLine = null;
+    return null;
+  }
+  const here = [lastFix.lat, lastFix.lng];
+  const node = routeFromMe ?? lastFix.nearest.node;
+  const target = [node.lat, node.lng];
+  if (!guideLine) {
+    guideLine = L.polyline([here, target], {
+      color: '#1a73e8', weight: 4, opacity: 0.9, dashArray: '2 8', lineCap: 'round', interactive: false,
+    }).addTo(geoLayer);
+  } else {
+    guideLine.setLatLngs([here, target]);
+  }
+
+  const meters = distanceMeters(here[0], here[1], node.lat, node.lng);
+  const m = Math.round(meters);
+  showGeo(() => (meters <= AT_NODE
+    ? t('geoAt', { name: nodeName(node) })
+    : t('geoNearest', { m, name: nodeName(node) })));
+  return target;
+}
+
+function onGeoError(err) {
+  // 1 = permiso denegado · 2 = posición no disponible · 3 = tiempo agotado
+  if (err.code === 1) showGeo(() => t('geoDenied'));
+  else if (!userMarker) showGeo(() => t('geoUnavailable'));
+}
+
+function startGeo() {
+  if (!('geolocation' in navigator)) {
+    showGeo(() => t('geoUnsupported'));
+    return;
+  }
+  geoCentered = false;
+  if (geoWatch !== null) navigator.geolocation.clearWatch(geoWatch);
+  geoWatch = navigator.geolocation.watchPosition(onPosition, onGeoError, {
+    enableHighAccuracy: true,
+    maximumAge: 10000,
+    timeout: 20000,
+  });
+}
+
+// Botón 📍 en el mapa: vuelve a pedir la ubicación y centra la vista
+const LocateControl = L.Control.extend({
+  options: { position: 'topleft' },
+  onAdd() {
+    const btn = L.DomUtil.create('button', 'locate-btn');
+    btn.type = 'button';
+    btn.textContent = '📍';
+    L.DomEvent.disableClickPropagation(btn);
+    L.DomEvent.on(btn, 'click', startGeo);
+    this.button = btn;
+    this.translate();
+    return btn;
+  },
+  translate() {
+    this.button.title = t('myLocation');
+    this.button.setAttribute('aria-label', t('myLocation'));
+  },
+});
+const locateControl = new LocateControl().addTo(map);
+startGeo();
+
 // ---------- Cambio de idioma: re-traducir todo lo visible ----------
 onLangChange(() => {
   applyStatic();
   fillSelects();
   renderSteps();
   renderMessage();
+  renderGeo();
+  locateControl.translate();
   player.refresh();
   map.closePopup();
 });
