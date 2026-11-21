@@ -49,7 +49,6 @@ EXTRA_LINKS = []
 MANUAL_LINKS = {
     ("edificio_t", "patio_canon"): "camino directo que no está en OSM",
     # Pendientes de confirmar en terreno (OSM solo da un rodeo grande):
-    ("edificio_a", "patio_central"): "pendiente",
     ("biblioteca", "edificio_a"): "pendiente",
     ("gimnasio_1", "patio_central"): "pendiente",
     ("gimnasio_1", "piscina"): "pendiente",
@@ -57,7 +56,9 @@ MANUAL_LINKS = {
     ("edificio_m", "porteria_valdes"): "pendiente",
 }
 # Pares que nunca deben conectarse directo (no se puede caminar entre ellos)
-NO_LINKS = set()
+NO_LINKS = {
+    ("edificio_a", "patio_central"),
+}
 # Tramos que se mantienen siempre, aunque pasen cerca de otro landmark
 # (p. ej. porque ya se grabó ese video)
 FORCED_LINKS = {
