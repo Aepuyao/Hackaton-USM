@@ -58,6 +58,11 @@ MANUAL_LINKS = {
 }
 # Pares que nunca deben conectarse directo (no se puede caminar entre ellos)
 NO_LINKS = set()
+# Tramos que se mantienen siempre, aunque pasen cerca de otro landmark
+# (p. ej. porque ya se grabó ese video)
+FORCED_LINKS = {
+    ("ingenieria_comercial", "patio_central"),
+}
 
 
 def meters(a, b):
@@ -246,7 +251,18 @@ def main():
         g.setdefault(src, {})
         return dijkstra(g, src)
 
+    forced = {key(*f) for f in FORCED_LINKS}
+    for k in forced:
+        if k in cand:
+            kept[k] = cand[k]
+        else:
+            a, b = k
+            kept[k] = ([pos[a], pos[b]], meters(pos[a], pos[b]) * 1.3, "manual")
+            print(f"  ⚠ FORCED_LINKS {a} ↔ {b}: sin camino en OSM, queda en línea recta")
+
     for k, (pts, length, src) in sorted(cand.items(), key=lambda x: x[1][1]):
+        if k in forced:
+            continue
         a, b = k
         da, prev_a = kept_dist(a)
         db, _ = kept_dist(b)
