@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cómo llegar · Campus Casa Central USM</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1>Cómo llegar <span>· Casa Central USM</span></h1>
+  </header>
+
+  <main class="layout">
+    <div id="map" class="map" aria-label="Mapa del campus"></div>
+
+    <section class="panel">
+      <form id="route-form" class="route-form">
+        <label>
+          <span>Desde</span>
+          <select id="from" required>
+            <option value="">Elige el origen</option>
+          </select>
+        </label>
+        <button type="button" id="swap" class="swap" title="Invertir origen y destino" aria-label="Invertir origen y destino">⇅</button>
+        <label>
+          <span>Hasta</span>
+          <select id="to" required>
+            <option value="">Elige el destino</option>
+          </select>
+        </label>
+        <button type="submit" id="go" class="go" disabled>Ir</button>
+      </form>
+
+      <p id="message" class="message" role="status"></p>
+
+      <div id="player" class="player">
+        <div id="overlay" class="overlay"></div>
+        <p id="player-empty" class="player-empty">Elige origen y destino y presiona <strong>Ir</strong> para ver el recorrido.</p>
+      </div>
+
+      <ol id="steps" class="steps"></ol>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
