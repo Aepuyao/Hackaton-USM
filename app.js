@@ -4,11 +4,15 @@ import {
   loadGraph, nodesById, route, pathNodes, edgeLatLngs, totalSeconds, nearestNode, distanceMeters,
 } from './js/route.js';
 import { createPlayer } from './js/player.js';
+import { createMotionDetector, FIX_TIMEOUT_MS, readMotionFix } from './js/motion.js';
+import { createGpsPath } from './js/mock-gps.js';
+import { createRouteProgress } from './js/route-progress.js';
 import { LANGS, initLang, getLang, setLang, onLangChange, t, nodeName, pick, applyStatic } from './js/i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const COLORS = { pending: '#2f6fb3', active: '#f28c28', done: '#8a9bb0' };
 const ME = '__me'; // valor del origen "📍 Mi ubicación"
+const mockGps = new URLSearchParams(location.search).get('mockGps') === '1';
 
 // Estado de la ubicación (se llena en la sección "Ubicación del usuario")
 let lastFix = null;      // { lat, lng, nearest: { node, meters } } si está cerca del campus
@@ -20,6 +24,8 @@ const els = {
   from: $('from'),
   to: $('to'),
   swap: $('swap'),
+  recordingPicker: $('recording-picker'),
+  recording: $('recording'),
   go: $('go'),
   message: $('message'),
   geoMessage: $('geo-message'),
@@ -27,6 +33,9 @@ const els = {
   overlay: $('overlay'),
   playerEmpty: $('player-empty'),
   steps: $('steps'),
+  motion: $('motion-control'),
+  motionStatus: $('motion-status'),
+  motionProgress: $('motion-progress'),
 };
 
 // ---------- Idioma ----------
@@ -66,6 +75,7 @@ try {
 }
 const byId = nodesById(graph);
 const nameOf = (id) => nodeName(byId.get(id));
+const recordedEdges = new Map(graph.edges.filter(edge => edge.recorded).map(edge => [edge.video, edge]));
 
 // ---------- F2: nodos desde el JSON ----------
 const campusBounds = L.latLngBounds(graph.nodes.map((n) => [n.lat, n.lng]));
@@ -137,6 +147,12 @@ function fillSelects() {
     select.replaceChildren(placeholder, ...extra, ...sorted.map((n) => new Option(nodeName(n), n.id)));
     select.value = value;
   }
+  if (recordedEdges.size) {
+    const choices = [...recordedEdges.values()].map(edge =>
+      new Option(`${nameOf(edge.from)} → ${nameOf(edge.to)}`, edge.video));
+    els.recording.replaceChildren(new Option(t('recordedPlaceholder'), ''), ...choices);
+    els.recordingPicker.hidden = false;
+  }
   syncSelects();
 }
 
@@ -152,12 +168,21 @@ function syncSelects() {
   }
   const a = els.from.value;
   const b = els.to.value;
+  els.recording.value = [...recordedEdges.values()].find(edge => edge.from === a && edge.to === b)?.video ?? '';
   els.go.disabled = !a || !b || a === b || (a === ME && !lastFix);
   els.swap.disabled = a === ME; // "Mi ubicación" no puede ser destino
 }
 
 els.from.addEventListener('change', syncSelects);
 els.to.addEventListener('change', syncSelects);
+els.recording.addEventListener('change', () => {
+  const edge = recordedEdges.get(els.recording.value);
+  if (edge) {
+    els.from.value = edge.from;
+    els.to.value = edge.to;
+  }
+  syncSelects();
+});
 els.swap.addEventListener('click', () => {
   [els.from.value, els.to.value] = [els.to.value, els.from.value];
   syncSelects();
@@ -165,6 +190,8 @@ els.swap.addEventListener('click', () => {
 fillSelects();
 
 // ---------- Reproductor ----------
+let routeProgress = null;
+let lastMotionFix = null;
 const player = createPlayer({
   container: els.player,
   overlay: els.overlay,
@@ -173,7 +200,82 @@ const player = createPlayer({
   nameOf,
   onSegment: highlightSegment,
   onFinish: finishRoute,
+  getRouteProgress: (index) => routeProgress?.at(index),
 });
+
+const motionDetector = createMotionDetector();
+let moving = null;
+let motionUnavailable = false;
+let motionFallback = false;
+let fixTimer;
+let lastMotionTimestamp = -Infinity;
+
+function renderMotion() {
+  const key = motionUnavailable ? 'motionUnavailable'
+    : moving === null ? 'motionWaiting'
+    : moving && routeProgress && player.index >= 0 && player.index < currentEdges.length && !routeProgress.at(player.index)
+      ? 'motionFollowRoute'
+    : moving ? 'motionMoving' : 'motionStopped';
+  els.motionStatus.hidden = !els.motion.checked;
+  els.motionStatus.dataset.state = key;
+  const label = t(motionFallback ? 'motionFallback' : key);
+  if (els.motionStatus.textContent !== label) els.motionStatus.textContent = label;
+
+  const metrics = els.motion.checked ? routeProgress?.metrics() : null;
+  els.motionProgress.hidden = !metrics;
+  if (metrics) {
+    const meters = new Intl.NumberFormat(getLang(), { maximumFractionDigits: 0 });
+    const speed = new Intl.NumberFormat(getLang(), { maximumFractionDigits: 1 });
+    els.motionProgress.textContent = t('motionProgress', {
+      total: meters.format(metrics.total),
+      remaining: meters.format(activeIndex === currentEdges.length ? 0 : metrics.remaining),
+      speed: speed.format(metrics.speed * 3.6),
+    });
+  }
+}
+
+function syncMotion() {
+  const enabled = els.motion.checked && !motionFallback;
+  if (!enabled) player.setMotionControl(false);
+  player.setMoving(moving === true);
+  if (enabled) player.setMotionControl(true);
+  player.refreshPace();
+  renderMotion();
+}
+
+function resetMotion({ unavailable = false, fallback = false } = {}) {
+  motionDetector.reset();
+  moving = null;
+  motionUnavailable = unavailable;
+  motionFallback = fallback;
+  lastMotionTimestamp = -Infinity;
+  lastMotionFix = null;
+  routeProgress?.reset();
+  clearTimeout(fixTimer);
+  if (!unavailable) fixTimer = setTimeout(expireMotion, FIX_TIMEOUT_MS);
+  syncMotion();
+}
+
+function expireMotion() {
+  resetMotion({ unavailable: true });
+}
+
+function updateMotion(position) {
+  const fix = readMotionFix(position);
+  if (!fix || Date.now() - fix.timestamp >= FIX_TIMEOUT_MS || fix.timestamp <= lastMotionTimestamp) return;
+  clearTimeout(fixTimer);
+  fixTimer = setTimeout(expireMotion, FIX_TIMEOUT_MS - Math.max(0, Date.now() - fix.timestamp));
+  lastMotionTimestamp = fix.timestamp;
+  lastMotionFix = fix;
+  routeProgress?.update(fix);
+  motionUnavailable = false;
+  motionFallback = false;
+  moving = motionDetector.update(fix);
+  syncMotion();
+}
+
+els.motion.checked = false;
+els.motion.addEventListener('change', syncMotion);
 
 // ---------- F4 + F5: ruta en el mapa ----------
 const routeLayer = L.layerGroup().addTo(map);
@@ -311,6 +413,8 @@ els.form.addEventListener('submit', (ev) => {
     player.stop();
     routeLayer.clearLayers();
     currentEdges = [];
+    routeProgress = null;
+    resetMockPath();
     currentWalk = walk;
     activeIndex = -1;
     renderSteps();
@@ -326,6 +430,8 @@ els.form.addEventListener('submit', (ev) => {
     player.stop();
     routeLayer.clearLayers();
     currentEdges = [];
+    routeProgress = null;
+    resetMockPath();
     currentWalk = null;
     routeFromMe = null;
     drawGuide();
@@ -335,6 +441,10 @@ els.form.addEventListener('submit', (ev) => {
   }
 
   currentEdges = edges;
+  routeProgress = null;
+  resetMockPath(here);
+  routeProgress = createRouteProgress(edges.map(edge => edgeLatLngs(graph, edge)), { simulated: mockGps });
+  if (lastMotionFix) routeProgress.update(lastMotionFix);
   currentWalk = walk;
   activeIndex = -1;
   const n = edges.length + (walk ? 1 : 0);
@@ -346,6 +456,7 @@ els.form.addEventListener('submit', (ev) => {
   renderSteps();
   els.playerEmpty.hidden = true;
   player.play(edges); // dentro del submit: cuenta como gesto del usuario (autoplay en celular)
+  renderMotion();
 
   // En celular, bajar hasta el video
   if (window.matchMedia('(max-width: 800px)').matches) {
@@ -488,6 +599,52 @@ let geoWatch = null;
 let geoCentered = false;   // la vista se centra solo la primera vez (o al tocar 📍)
 let autoFrom = null;       // origen puesto automáticamente (se puede pisar al moverse)
 let geoText = null;
+let mockPath;
+let mockOffset = 0;
+let mockMoving = false;
+let mockSpeed = 2.4;
+let mockTimer;
+let mockTickAt;
+
+function emitMockPosition() {
+  onPosition(mockPath.positionAt(mockOffset, Date.now(), mockMoving ? mockSpeed : 0));
+}
+
+function resetMockPath(here = null) {
+  if (!mockGps) return;
+  const points = currentEdges.length
+    ? currentEdges.flatMap(edge => edgeLatLngs(graph, edge))
+    : graph.edges.length ? edgeLatLngs(graph, graph.edges[0]) : [[graph.nodes[0].lat, graph.nodes[0].lng]];
+  mockPath = createGpsPath(here ? [here, ...points] : points);
+  mockOffset = 0;
+  mockTickAt = performance.now();
+  resetMotion();
+  emitMockPosition();
+}
+
+function initMockControls() {
+  $('mock-gps').hidden = false;
+  $('mock-speed').addEventListener('change', (event) => { mockSpeed = Number(event.target.value); });
+  function setMockMoving(value) {
+    if (value && mockOffset >= mockPath.length) resetMockPath();
+    mockMoving = value;
+    mockTickAt = performance.now();
+    $('mock-move').disabled = value;
+    $('mock-stop').disabled = !value;
+  }
+  $('mock-move').addEventListener('click', () => setMockMoving(true));
+  $('mock-stop').addEventListener('click', () => setMockMoving(false));
+  resetMockPath();
+  mockTimer = setInterval(() => {
+    const now = performance.now();
+    if (mockMoving) {
+      mockOffset = Math.min(mockPath.length, mockOffset + mockSpeed * Math.min(2, (now - mockTickAt) / 1_000));
+      if (mockOffset >= mockPath.length) setMockMoving(false);
+    }
+    mockTickAt = now;
+    emitMockPosition();
+  }, 1_000);
+}
 
 function showGeo(fn) {
   geoText = fn;
@@ -500,6 +657,7 @@ function renderGeo() {
 const userIcon = L.divIcon({ className: '', html: '<div class="me"></div>', iconSize: [16, 16], iconAnchor: [8, 8] });
 
 function onPosition(pos) {
+  updateMotion(pos);
   const here = [pos.coords.latitude, pos.coords.longitude];
   const nearest = nearestNode(graph, here[0], here[1]);
   if (!nearest) return;
@@ -575,23 +733,36 @@ function drawGuide() {
 }
 
 function onGeoError(err) {
+  resetMotion({ unavailable: true, fallback: err.code === 1 });
   // 1 = permiso denegado · 2 = posición no disponible · 3 = tiempo agotado
   if (err.code === 1) showGeo(() => t('geoDenied'));
   else if (!userMarker) showGeo(() => t('geoUnavailable'));
 }
 
 function startGeo() {
-  if (!('geolocation' in navigator)) {
+  if (mockGps) {
+    geoCentered = false;
+    if (mockTimer === undefined) initMockControls();
+    else emitMockPosition();
+    return;
+  }
+  if (!navigator.geolocation) {
+    resetMotion({ unavailable: true, fallback: true });
     showGeo(() => t('geoUnsupported'));
     return;
   }
   geoCentered = false;
+  resetMotion();
   if (geoWatch !== null) navigator.geolocation.clearWatch(geoWatch);
-  geoWatch = navigator.geolocation.watchPosition(onPosition, onGeoError, {
-    enableHighAccuracy: true,
-    maximumAge: 10000,
-    timeout: 20000,
-  });
+  try {
+    geoWatch = navigator.geolocation.watchPosition(onPosition, onGeoError, {
+      enableHighAccuracy: true,
+      maximumAge: 10000,
+      timeout: FIX_TIMEOUT_MS,
+    });
+  } catch {
+    onGeoError({ code: 1 });
+  }
 }
 
 // Botón 📍 en el mapa: vuelve a pedir la ubicación y centra la vista
@@ -622,6 +793,7 @@ onLangChange(() => {
   renderSteps();
   renderMessage();
   renderGeo();
+  renderMotion();
   locateControl.translate();
   player.refresh();
   map.closePopup();

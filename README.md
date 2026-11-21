@@ -113,6 +113,10 @@ python3 -m http.server 8000
 
 ## Comprimir videos
 
+Para ver los cinco clips grabados en el campus, elige un tramo en **Tramos grabados** y pulsa **Ir**. Por ejemplo, prueba **Edificio A → Ingeniería Comercial**. Los demás tramos pueden usar videos de prueba. Para ver una toma sin caminar, deja desactivada la reproducción por movimiento.
+
+Marca las aristas con una grabación real como `"recorded": true` en `graph.json` para que aparezcan en ese selector.
+
 ```bash
 for f in raw/*.mp4; do
   ffmpeg -i "$f" -vf scale=-2:720 -c:v libx264 -preset veryfast -crf 28 -movflags +faststart -an "videos/$(basename "$f")"
@@ -123,3 +127,11 @@ done
 
 - El `<video>` debe llevar `muted playsinline`, y la reproducción debe partir después de que el usuario toque "Ir"; si no, el celular bloquea el autoplay.
 - Solo se suben a git los clips comprimidos (`videos/`). Los originales (`raw/`) no se suben.
+
+## Reproducción por movimiento
+
+El recorrido se reproduce normalmente al abrir la app. Activa **Reproducción automática por movimiento** para que el video avance cuando el GPS confirme que estás caminando. Si se pierde temporalmente la señal, el video espera lecturas fiables. Si el navegador no ofrece geolocalización o el permiso se deniega, la app usa la reproducción normal.
+
+Para probarlo sin caminar, abre [http://localhost:8000/?mockGps=1](http://localhost:8000/?mockGps=1). Elige un recorrido, pulsa **Ir**, activa el interruptor y usa **Mover** y **Detener**. La simulación sigue la línea del recorrido elegido y el indicador cambia después de varias lecturas. Puedes ajustar la velocidad desde el mismo panel.
+
+Con el control por movimiento activo, la app mide la polilínea y muestra la distancia restante y la velocidad de avance. La duración de cada clip representa la longitud de su tramo. El reproductor ajusta la tasa según la distancia pendiente y la velocidad GPS, y pasa al siguiente clip cuando la ubicación alcanza el fin del tramo. La llegada se estima dentro de la precisión del GPS. Para que el recorrido se vea natural, graba cada clip de extremo a extremo a un ritmo uniforme.

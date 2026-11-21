@@ -91,6 +91,21 @@ export function distanceMeters(lat1, lng1, lat2, lng2) {
   return 2 * R * Math.asin(Math.sqrt(h));
 }
 
+/** Segmentos y longitud acumulada de una polilínea, en metros. */
+export function measurePolyline(points) {
+  const segments = [];
+  let length = 0;
+  for (let i = 1; i < points.length; i++) {
+    const from = points[i - 1];
+    const to = points[i];
+    const meters = distanceMeters(...from, ...to);
+    if (meters === 0) continue;
+    segments.push({ from, to, length: meters, start: length });
+    length += meters;
+  }
+  return { segments, length };
+}
+
 /** Nodo más cercano a (lat, lng): { node, meters }, o null si el grafo no tiene nodos. */
 export function nearestNode(graph, lat, lng) {
   let best = null;
