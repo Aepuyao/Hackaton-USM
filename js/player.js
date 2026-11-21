@@ -6,15 +6,28 @@
 // Si un clip falla (archivo faltante, formato), se salta al siguiente.
 //
 // Uso:
-//   const player = createPlayer({ container, overlay, graph, onSegment, onFinish });
+//   const player = createPlayer({ container, overlay, graph, onSegment, onFinish, t, nameOf });
 //   player.play(edges);   // llamar dentro del click de "Ir" (autoplay en celular)
 //   player.stop();
+//   player.refresh();     // vuelve a escribir el overlay (p. ej. al cambiar de idioma)
+//
+// `t(key, params)` y `nameOf(id)` son opcionales (por defecto, textos en español).
 
 import { nodesById } from './route.js';
 
-export function createPlayer({ container, overlay, graph, onSegment, onFinish } = {}) {
+const DEFAULT_TEXTS = {
+  segment: 'Tramo {i}/{n}: {from} → {to}',
+  arrived: 'Llegaste a {name}.',
+  alreadyThere: 'Ya estás en el destino',
+  tapToPlay: 'Toca el video para reproducir',
+};
+const defaultT = (key, params = {}) =>
+  (DEFAULT_TEXTS[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
+
+export function createPlayer({ container, overlay, graph, onSegment, onFinish, t = defaultT, nameOf } = {}) {
   const byId = nodesById(graph);
-  const nameOf = (id) => byId.get(id)?.name ?? id;
+  nameOf ??= (id) => byId.get(id)?.name ?? id;
+  let overlayText = null; // función que arma el texto actual del overlay
 
   const els = [makeVideo(), makeVideo()];
   els.forEach((v) => container.appendChild(v));
@@ -55,8 +68,14 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish } 
     v.load();
   }
 
-  function setOverlay(text) {
-    if (overlay) overlay.textContent = text;
+  // Se guarda una función (no el texto) para poder re-traducirlo con refresh()
+  function setOverlay(fn) {
+    overlayText = fn;
+    refresh();
+  }
+
+  function refresh() {
+    if (overlay) overlay.textContent = overlayText ? overlayText() : '';
   }
 
   function showCurrent() {
@@ -64,7 +83,9 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish } 
     const e = queue[index];
     v.hidden = false;
     els[1 - active].hidden = true;
-    setOverlay(`Tramo ${index + 1}/${queue.length}: ${nameOf(e.from)} → ${nameOf(e.to)}`);
+    const i = index + 1;
+    const n = queue.length;
+    setOverlay(() => t('segment', { i, n, from: nameOf(e.from), to: nameOf(e.to) }));
     onSegment?.(index, e);
 
     if (v.error) {
@@ -74,7 +95,7 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish } 
     }
     v.play().catch((err) => {
       if (err.name === 'NotSupportedError') advance();
-      else if (err.name === 'NotAllowedError') setOverlay('Toca el video para reproducir');
+      else if (err.name === 'NotAllowedError') setOverlay(() => t('tapToPlay'));
       // AbortError: se cambió de clip antes de empezar, se ignora
     });
   }
@@ -96,7 +117,7 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish } 
 
   function finish() {
     const last = queue[queue.length - 1];
-    setOverlay(last ? `Llegaste a ${nameOf(last.to)}` : '');
+    setOverlay(last ? () => t('arrived', { name: nameOf(last.to) }) : null);
     onFinish?.();
   }
 
@@ -104,7 +125,7 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish } 
     stop();
     queue = edges ?? [];
     if (queue.length === 0) {
-      setOverlay('Ya estás en el destino');
+      setOverlay(() => t('alreadyThere'));
       return;
     }
     index = 0;
@@ -123,7 +144,7 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish } 
       v.load();
       v.hidden = true;
     }
-    setOverlay('');
+    setOverlay(null);
   }
 
   // Si el navegador bloqueó el autoplay, un toque lo reanuda
@@ -132,5 +153,5 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish } 
     if (index >= 0 && index < queue.length && v.paused) v.play().catch(() => {});
   });
 
-  return { play, stop, get index() { return index; } };
+  return { play, stop, refresh, get index() { return index; } };
 }

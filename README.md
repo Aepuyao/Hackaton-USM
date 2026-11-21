@@ -1,5 +1,14 @@
 # Hackaton-USM
 
+# Equipo "Capitan Epuyao"
+
+Los integrantes de este equipo son:
+* Alonso Epuyao
+* Cristobal Cayuqueo
+* Christian Mauch
+
+## Descripcion del prototipo
+
 MVP de navegación con video para el campus Casa Central de la USM. El usuario elige un origen (A) y un destino (B), y la app muestra la ruta en un mapa junto con una secuencia de videos del recorrido.
 
 ## Tecnologías
@@ -55,6 +64,16 @@ player.play(edges);
 ```
 
 Los `<video>` que crea el reproductor tienen la clase `route-video`, así que se pueden estilar con CSS (por ejemplo `width: 100%`).
+
+## Idiomas
+
+La página está en español, inglés, francés y alemán (selector 🌐 arriba a la derecha).
+Se recuerda la elección; la primera vez se usa el idioma del navegador. También se puede
+forzar con `?lang=en`, `?lang=fr` o `?lang=de`.
+
+- Textos de la interfaz: `js/i18n.js` (`STRINGS`). Para agregar un texto, ponerlo en los 4 idiomas.
+- Nombres de lugares: en `graph.json`, `"names": { "en": …, "fr": …, "de": … }` en cada nodo.
+  Si falta una traducción se muestra el nombre en español (el validador avisa).
 
 ## Comandos útiles
 

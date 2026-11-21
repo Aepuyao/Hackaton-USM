@@ -27,6 +27,9 @@ for (const node of nodes) {
   else if (ids.has(node.id)) problems.push(`Id de nodo repetido: ${node.id}`);
   ids.add(node.id);
   if (!node.name) problems.push(`Nodo ${node.id} sin name`);
+  for (const lang of ['en', 'fr', 'de']) {
+    if (!node.names?.[lang]) warnings.push(`Nodo ${node.id}: falta la traducción names.${lang}`);
+  }
   if (typeof node.lat !== 'number' || typeof node.lng !== 'number') {
     problems.push(`Nodo ${node.id}: lat/lng deben ser números`);
   }

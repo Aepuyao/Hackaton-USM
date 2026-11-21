@@ -10,35 +10,39 @@
 </head>
 <body>
   <header class="topbar">
-    <h1>Cómo llegar <span>· Casa Central USM</span></h1>
+    <h1><span data-i18n="title">Cómo llegar</span> <span class="sub">· Casa Central USM</span></h1>
+    <label class="lang">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select id="lang" data-i18n-attr="aria-label:language" aria-label="Idioma"></select>
+    </label>
   </header>
 
   <main class="layout">
-    <div id="map" class="map" aria-label="Mapa del campus"></div>
+    <div id="map" class="map" data-i18n-attr="aria-label:mapLabel" aria-label="Mapa del campus"></div>
 
     <section class="panel">
       <form id="route-form" class="route-form">
         <label>
-          <span>Desde</span>
+          <span data-i18n="from">Desde</span>
           <select id="from" required>
-            <option value="">Elige el origen</option>
+            <option value="" data-i18n="fromPlaceholder">Elige el origen</option>
           </select>
         </label>
-        <button type="button" id="swap" class="swap" title="Invertir origen y destino" aria-label="Invertir origen y destino">⇅</button>
+        <button type="button" id="swap" class="swap" data-i18n-attr="title:swap,aria-label:swap" title="Invertir origen y destino" aria-label="Invertir origen y destino">⇅</button>
         <label>
-          <span>Hasta</span>
+          <span data-i18n="to">Hasta</span>
           <select id="to" required>
-            <option value="">Elige el destino</option>
+            <option value="" data-i18n="toPlaceholder">Elige el destino</option>
           </select>
         </label>
-        <button type="submit" id="go" class="go" disabled>Ir</button>
+        <button type="submit" id="go" class="go" disabled data-i18n="go">Ir</button>
       </form>
 
       <p id="message" class="message" role="status"></p>
 
       <div id="player" class="player">
         <div id="overlay" class="overlay"></div>
-        <p id="player-empty" class="player-empty">Elige origen y destino y presiona <strong>Ir</strong> para ver el recorrido.</p>
+        <p id="player-empty" class="player-empty" data-i18n-html="playerEmpty">Elige origen y destino y presiona <strong>Ir</strong> para ver el recorrido.</p>
       </div>
 
       <ol id="steps" class="steps"></ol>

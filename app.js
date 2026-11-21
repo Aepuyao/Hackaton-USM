@@ -1,12 +1,14 @@
-// UI: mapa (Leaflet), selector A→B, ruta y reproductor.
+// UI: mapa (Leaflet), selector A→B, ruta, reproductor e idioma.
 // La lógica (Dijkstra y cola de videos) vive en js/route.js y js/player.js.
 import { loadGraph, nodesById, route, pathNodes, edgeLatLngs, totalSeconds } from './js/route.js';
 import { createPlayer } from './js/player.js';
+import { LANGS, initLang, getLang, setLang, onLangChange, t, nodeName, applyStatic } from './js/i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const COLORS = { pending: '#2f6fb3', active: '#f28c28', done: '#8a9bb0' };
 
 const els = {
+  lang: $('lang'),
   form: $('route-form'),
   from: $('from'),
   to: $('to'),
@@ -19,9 +21,22 @@ const els = {
   steps: $('steps'),
 };
 
-function showMessage(text, isError = false) {
-  els.message.textContent = text;
+// ---------- Idioma ----------
+initLang();
+for (const [code, label] of Object.entries(LANGS)) els.lang.add(new Option(label, code));
+els.lang.value = getLang();
+els.lang.addEventListener('change', () => setLang(els.lang.value));
+applyStatic();
+
+// El mensaje se guarda como función para poder re-traducirlo
+let messageText = null;
+function showMessage(fn, isError = false) {
+  messageText = fn;
   els.message.classList.toggle('error', isError);
+  renderMessage();
+}
+function renderMessage() {
+  els.message.textContent = messageText ? messageText() : '';
 }
 
 // ---------- F1: mapa base ----------
@@ -31,17 +46,18 @@ L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
   maxNativeZoom: 19,
   attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
 }).addTo(map);
-map.setView([-33.0347, -71.5962], 17); // por si falla la carga del grafo
+map.setView([-33.0352, -71.5950], 17); // por si falla la carga del grafo
 
 let graph;
 try {
   graph = await loadGraph('graph.json');
 } catch (err) {
   console.error(err);
-  showMessage('No se pudo cargar graph.json. ¿Abriste la página con un servidor local?', true);
+  showMessage(() => t('loadError'), true);
   throw err;
 }
 const byId = nodesById(graph);
+const nameOf = (id) => nodeName(byId.get(id));
 
 // ---------- F2: nodos desde el JSON ----------
 const campusBounds = L.latLngBounds(graph.nodes.map((n) => [n.lat, n.lng]));
@@ -55,7 +71,8 @@ for (const node of graph.nodes) {
     fillColor: '#0b2f5b',
     fillOpacity: 1,
   }).addTo(map);
-  marker.bindTooltip(node.name, { direction: 'top', offset: [0, -6] });
+  // Contenido como función: se evalúa al mostrarse, así sale en el idioma actual
+  marker.bindTooltip(() => nodeName(node), { direction: 'top', offset: [0, -6] });
   marker.bindPopup(() => popupFor(node));
 }
 
@@ -73,23 +90,23 @@ if (new URLSearchParams(location.search).has('revisar')) {
       weight: 4,
       opacity: 0.8,
       dashArray: real ? null : '6 6',
-    }).bindTooltip(`${byId.get(e.from).name} ↔ ${byId.get(e.to).name} · ${e.seconds} s`, { sticky: true })
+    }).bindTooltip(() => `${nameOf(e.from)} ↔ ${nameOf(e.to)} · ${e.seconds} s`, { sticky: true })
       .addTo(map);
   }
-  showMessage('Modo revisión: azul = camino real · rojo punteado = recto, falta confirmar');
+  showMessage(() => 'Modo revisión: azul = camino real · rojo punteado = recto, falta confirmar');
 }
 
 // Popup con atajos "Salir de aquí" / "Ir aquí"
 function popupFor(node) {
   const div = document.createElement('div');
   const title = document.createElement('strong');
-  title.textContent = node.name;
+  title.textContent = nodeName(node);
   const actions = document.createElement('div');
   actions.className = 'popup-actions';
-  for (const [label, select] of [['Salir de aquí', els.from], ['Ir aquí', els.to]]) {
+  for (const [key, select] of [['startHere', els.from], ['goHere', els.to]]) {
     const btn = document.createElement('button');
     btn.type = 'button';
-    btn.textContent = label;
+    btn.textContent = t(key);
     btn.addEventListener('click', () => {
       select.value = node.id;
       syncSelects();
@@ -102,9 +119,16 @@ function popupFor(node) {
 }
 
 // ---------- F3: selector de origen y destino ----------
-const sortedNodes = [...graph.nodes].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-for (const select of [els.from, els.to]) {
-  for (const n of sortedNodes) select.add(new Option(n.name, n.id));
+// Opciones ordenadas alfabéticamente en el idioma actual (se rehacen al cambiar de idioma)
+function fillSelects() {
+  const sorted = [...graph.nodes].sort((a, b) => nodeName(a).localeCompare(nodeName(b), getLang()));
+  for (const select of [els.from, els.to]) {
+    const value = select.value;
+    const placeholder = select.options[0];
+    select.replaceChildren(placeholder, ...sorted.map((n) => new Option(nodeName(n), n.id)));
+    select.value = value;
+  }
+  syncSelects();
 }
 
 // No permitir A = B: la opción elegida en un select se desactiva en el otro
@@ -125,13 +149,15 @@ els.swap.addEventListener('click', () => {
   [els.from.value, els.to.value] = [els.to.value, els.from.value];
   syncSelects();
 });
-syncSelects();
+fillSelects();
 
 // ---------- Reproductor ----------
 const player = createPlayer({
   container: els.player,
   overlay: els.overlay,
   graph,
+  t,
+  nameOf,
   onSegment: highlightSegment,
   onFinish: finishRoute,
 });
@@ -141,6 +167,7 @@ const routeLayer = L.layerGroup().addTo(map);
 let segments = [];   // una polyline por tramo
 let hereMarker = null;
 let currentEdges = [];
+let activeIndex = -1; // tramo en reproducción; currentEdges.length = terminado
 
 const pinIcon = (letter, cls) => L.divIcon({
   className: '',
@@ -161,20 +188,18 @@ function drawRoute(edges) {
   // Borde blanco debajo para que la línea se lea sobre cualquier fondo
   L.polyline(latlngs, { color: '#fff', weight: 10, opacity: 0.9 }).addTo(routeLayer);
 
-  segments = edges.map((e) => {
-    return L.polyline(edgeLatLngs(graph, e), {
-      color: COLORS.pending,
-      weight: 6,
-      lineCap: 'round',
-    }).addTo(routeLayer);
-  });
+  segments = edges.map((e) => L.polyline(edgeLatLngs(graph, e), {
+    color: COLORS.pending,
+    weight: 6,
+    lineCap: 'round',
+  }).addTo(routeLayer));
 
   const start = nodes[0];
   const end = nodes[nodes.length - 1];
   L.marker([start.lat, start.lng], { icon: pinIcon('A', 'pin-a'), zIndexOffset: 500 })
-    .bindTooltip(start.name).addTo(routeLayer);
+    .bindTooltip(() => nodeName(start)).addTo(routeLayer);
   L.marker([end.lat, end.lng], { icon: pinIcon('B', 'pin-b'), zIndexOffset: 500 })
-    .bindTooltip(end.name).addTo(routeLayer);
+    .bindTooltip(() => nodeName(end)).addTo(routeLayer);
 
   hereMarker = L.marker([start.lat, start.lng], { icon: hereIcon, zIndexOffset: 1000, interactive: false })
     .addTo(routeLayer);
@@ -182,40 +207,47 @@ function drawRoute(edges) {
   map.fitBounds(L.latLngBounds(latlngs), { padding: [40, 40], maxZoom: 19 });
 }
 
-function renderSteps(edges) {
-  els.steps.replaceChildren(...edges.map((e) => {
+function renderSteps() {
+  els.steps.replaceChildren(...currentEdges.map((e) => {
     const li = document.createElement('li');
-    li.append(`${byId.get(e.from).name} → ${byId.get(e.to).name} `);
+    li.append(`${nameOf(e.from)} → ${nameOf(e.to)} `);
     const secs = document.createElement('span');
     secs.className = 'secs';
     secs.textContent = `(${e.seconds} s)`;
     li.appendChild(secs);
     return li;
   }));
+  updateStepClasses();
+}
+
+function updateStepClasses() {
+  [...els.steps.children].forEach((li, j) => {
+    li.classList.toggle('done', j < activeIndex);
+    li.classList.toggle('active', j === activeIndex);
+  });
 }
 
 function highlightSegment(i, edge) {
+  activeIndex = i;
   segments.forEach((seg, j) => {
     const state = j < i ? 'done' : j === i ? 'active' : 'pending';
     seg.setStyle({ color: COLORS[state], weight: state === 'active' ? 8 : 6 });
     if (state === 'active') seg.bringToFront();
   });
-  [...els.steps.children].forEach((li, j) => {
-    li.classList.toggle('done', j < i);
-    li.classList.toggle('active', j === i);
-  });
+  updateStepClasses();
   const from = byId.get(edge.from);
   hereMarker?.setLatLng([from.lat, from.lng]);
 }
 
 function finishRoute() {
+  activeIndex = currentEdges.length;
   segments.forEach((seg) => seg.setStyle({ color: COLORS.done, weight: 6 }));
-  [...els.steps.children].forEach((li) => { li.classList.add('done'); li.classList.remove('active'); });
+  updateStepClasses();
   const last = currentEdges[currentEdges.length - 1];
   if (last) {
     const end = byId.get(last.to);
     hereMarker?.setLatLng([end.lat, end.lng]);
-    showMessage(`Llegaste a ${end.name}.`);
+    showMessage(() => t('arrived', { name: nodeName(end) }));
   }
 }
 
@@ -230,18 +262,20 @@ els.form.addEventListener('submit', (ev) => {
   if (!edges) {
     player.stop();
     routeLayer.clearLayers();
+    currentEdges = [];
     els.steps.replaceChildren();
-    showMessage('No hay un camino entre esos dos puntos.', true);
+    showMessage(() => t('noRoute'), true);
     return;
   }
 
   currentEdges = edges;
-  const secs = totalSeconds(edges);
-  const min = Math.max(1, Math.round(secs / 60));
-  showMessage(`${edges.length} tramo${edges.length > 1 ? 's' : ''} · ~${min} min caminando`);
+  activeIndex = -1;
+  const n = edges.length;
+  const min = Math.max(1, Math.round(totalSeconds(edges) / 60));
+  showMessage(() => t(n === 1 ? 'summaryOne' : 'summaryOther', { n, min }));
 
   drawRoute(edges);
-  renderSteps(edges);
+  renderSteps();
   els.playerEmpty.hidden = true;
   player.play(edges); // dentro del submit: cuenta como gesto del usuario (autoplay en celular)
 
@@ -249,4 +283,14 @@ els.form.addEventListener('submit', (ev) => {
   if (window.matchMedia('(max-width: 800px)').matches) {
     els.player.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
+});
+
+// ---------- Cambio de idioma: re-traducir todo lo visible ----------
+onLangChange(() => {
+  applyStatic();
+  fillSelects();
+  renderSteps();
+  renderMessage();
+  player.refresh();
+  map.closePopup();
 });
