@@ -65,13 +65,17 @@ player.play(edges);
 
 Los `<video>` que crea el reproductor tienen la clase `route-video`, así que se pueden estilar con CSS (por ejemplo `width: 100%`).
 
-## Baños
+## Lugares de interés: baños y cafeterías
 
-Pines "WC" definidos en `restrooms.json` (no forman parte del grafo de rutas). Cada uno tiene
-`lat`, `lng`, `photos` (lista, con piso y hombres/mujeres opcionales) y `name` / `description`
-en los 4 idiomas. Con varias fotos, el popup muestra un carrusel. El botón "Cómo llegar" del
-popup lleva al landmark más cercano; para forzar otro, agregar `"node": "<id del nodo>"`.
-Las fotos van en `img/` (ver `img/LEEME.md`).
+Pines definidos en `restrooms.json` (WC) y `cafes.json` (☕). No forman parte del grafo de
+rutas. Cada lugar tiene `lat`, `lng`, `photos` (lista; en baños, piso y hombres/mujeres
+opcionales) y `name` / `description` en los 4 idiomas. Las cafeterías llevan además
+`"junaeb": true/false`, que se muestra como distintivo. Con varias fotos, el popup muestra un
+carrusel. El botón "Cómo llegar" lleva al landmark más cercano; para forzar otro, agregar
+`"node": "<id del nodo>"`. Las fotos van en `img/` (ver `img/LEEME.md`).
+
+Para agregar otro tipo de lugar: una entrada en `POI_TYPES` (`app.js`), su JSON, su clave de
+texto en `js/i18n.js` y el color del pin en `styles.css`.
 
 ## Idiomas
 

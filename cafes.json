@@ -1,0 +1,89 @@
+{
+  "cafes": [
+    {
+      "id": "kiosko_patio_central",
+      "lat": -33.035407,
+      "lng": -71.595524,
+      "node": "patio_central",
+      "junaeb": false,
+      "photos": [
+        { "src": "img/kiosko.jpeg" }
+      ],
+      "name": {
+        "es": "Kiosko Patio Central",
+        "en": "Central Courtyard Kiosk",
+        "fr": "Kiosque de la Cour centrale",
+        "de": "Kiosk im Zentralen Innenhof"
+      },
+      "description": {
+        "es": "El lugar más barato de la U para comprar, pero no acepta Junaeb.",
+        "en": "The cheapest place on campus to buy food, but it does not accept the JUNAEB card.",
+        "fr": "L'endroit le moins cher du campus, mais la carte JUNAEB n'y est pas acceptée.",
+        "de": "Der günstigste Ort auf dem Campus, aber die JUNAEB-Karte wird nicht akzeptiert."
+      }
+    },
+    {
+      "id": "cafeteria_cara",
+      "lat": -33.035971,
+      "lng": -71.595927,
+      "junaeb": false,
+      "photos": [
+        { "src": "img/cafe_cara.jpeg" }
+      ],
+      "name": {
+        "es": "Cafetería cara",
+        "en": "Pricey Cafeteria",
+        "fr": "Cafétéria chère",
+        "de": "Teure Cafeteria"
+      },
+      "description": {
+        "es": "No acepta Junaeb y es la más cara de la U, pero es donde suelen ir los profesores y gente externa.",
+        "en": "It does not accept the JUNAEB card and is the most expensive on campus, but it is where professors and visitors usually go.",
+        "fr": "La carte JUNAEB n'y est pas acceptée et c'est la plus chère du campus, mais c'est là que vont souvent les professeurs et les visiteurs.",
+        "de": "Keine JUNAEB-Karte und die teuerste auf dem Campus, aber hier gehen meist Professoren und Besucher hin."
+      }
+    },
+    {
+      "id": "cafeteria_c",
+      "lat": -33.036302,
+      "lng": -71.594503,
+      "junaeb": true,
+      "photos": [
+        { "src": "img/cafe_c.jpeg" }
+      ],
+      "name": {
+        "es": "Cafetería del C",
+        "en": "Building C Cafeteria",
+        "fr": "Cafétéria du bâtiment C",
+        "de": "Cafeteria in Gebäude C"
+      },
+      "description": {
+        "es": "Conveniente por su ubicación y acepta Junaeb, aunque no tiene buenos combos.",
+        "en": "Conveniently located and accepts the JUNAEB card, although its meal deals are not great.",
+        "fr": "Bien située et accepte la carte JUNAEB, mais ses formules ne sont pas terribles.",
+        "de": "Gut gelegen und akzeptiert die JUNAEB-Karte, aber die Menüangebote sind nicht besonders gut."
+      }
+    },
+    {
+      "id": "cafeteria_p",
+      "lat": -33.036644,
+      "lng": -71.594320,
+      "junaeb": false,
+      "photos": [
+        { "src": "img/cafe_p.jpeg" }
+      ],
+      "name": {
+        "es": "Cafetería del P",
+        "en": "Building P Cafeteria",
+        "fr": "Cafétéria du bâtiment P",
+        "de": "Cafeteria in Gebäude P"
+      },
+      "description": {
+        "es": "No acepta Junaeb, pero tiene buenos combos de comida y una de las mejores vistas de la U.",
+        "en": "It does not accept the JUNAEB card, but it has good meal deals and one of the best views on campus.",
+        "fr": "La carte JUNAEB n'y est pas acceptée, mais elle propose de bonnes formules et l'une des plus belles vues du campus.",
+        "de": "Keine JUNAEB-Karte, aber gute Menüangebote und eine der schönsten Aussichten auf dem Campus."
+      }
+    }
+  ]
+}

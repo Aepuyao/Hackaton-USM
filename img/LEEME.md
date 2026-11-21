@@ -1,6 +1,11 @@
-# Fotos de los baños
+# Fotos de baños y cafeterías
 
-Se referencian desde `restrooms.json`, en la lista `photos` de cada baño:
+Se referencian desde `restrooms.json` y `cafes.json`, en la lista `photos` de cada lugar.
+
+Cafeterías: `kiosko.jpeg`, `cafe_cara.jpeg`, `cafe_c.jpeg`, `cafe_p.jpeg`.
+Si falta una foto, el popup muestra "Foto pendiente".
+
+Ejemplo (baños, con piso y hombres/mujeres):
 
 ```json
 "photos": [

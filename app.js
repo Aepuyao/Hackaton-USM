@@ -486,10 +486,21 @@ els.form.addEventListener('submit', (ev) => {
   }
 });
 
-// ---------- Baños (restrooms.json) ----------
-// Pines "WC" con foto y descripción. No forman parte del grafo: "Cómo llegar"
-// lleva al landmark más cercano al baño.
-const wcIcon = L.divIcon({ className: '', html: '<div class="wc-pin">WC</div>', iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
+// ---------- Lugares de interés: baños, cafeterías… ----------
+// Pines con foto y descripción. No forman parte del grafo: "Cómo llegar" lleva al
+// landmark más cercano (o al indicado en `node`). Para agregar un tipo nuevo:
+// sumar una entrada aquí, su JSON, su clave en i18n y el color del pin en styles.css.
+const POI_TYPES = [
+  { file: 'restrooms.json', list: 'restrooms', kind: 'restroom', pin: 'WC', cls: 'poi-pin wc-pin' },
+  { file: 'cafes.json', list: 'cafes', kind: 'cafe', pin: '☕', cls: 'poi-pin cafe-pin' },
+];
+const poiIcon = (type) => L.divIcon({
+  className: '',
+  html: `<div class="${type.cls}">${type.pin}</div>`,
+  iconSize: [30, 30],
+  iconAnchor: [15, 15],
+  popupAnchor: [0, -14],
+});
 
 // Etiqueta de una foto: "Piso 1 · Hombres", "Mujeres", "" (baño para todos)
 function photoLabel(p) {
@@ -556,18 +567,28 @@ function photoCarousel(photos, alt) {
   return box;
 }
 
-function restroomPopup(r) {
+function poiPopup(type, r) {
   const div = document.createElement('div');
-  div.className = 'poi-popup';
+  div.className = `poi-popup poi-${type.kind}`;
 
   const kind = document.createElement('div');
   kind.className = 'poi-kind';
-  kind.textContent = t('restroom');
+  kind.textContent = t(type.kind);
 
   const title = document.createElement('h3');
   title.textContent = pick(r.name);
 
   const media = photoCarousel(r.photos ?? [], pick(r.name));
+
+  // Distintivos opcionales (por ahora: si acepta la tarjeta Junaeb)
+  const badges = document.createElement('div');
+  badges.className = 'poi-badges';
+  if (typeof r.junaeb === 'boolean') {
+    const b = document.createElement('span');
+    b.className = `poi-badge ${r.junaeb ? 'ok' : 'no'}`;
+    b.textContent = `${r.junaeb ? '✓' : '✗'} ${t(r.junaeb ? 'junaebYes' : 'junaebNo')}`;
+    badges.appendChild(b);
+  }
 
   const desc = document.createElement('p');
   desc.textContent = pick(r.description);
@@ -577,7 +598,7 @@ function restroomPopup(r) {
   go.className = 'poi-go';
   go.textContent = t('directions');
   go.addEventListener('click', () => {
-    // `node` en restrooms.json fuerza el landmark; si no, el más cercano
+    // `node` en el JSON fuerza el landmark; si no, el más cercano
     const target = byId.get(r.node) ?? nearestNode(graph, r.lat, r.lng)?.node;
     if (!target) return;
     els.to.value = target.id;
@@ -588,24 +609,29 @@ function restroomPopup(r) {
     else els.from.focus();
   });
 
-  div.append(kind, title, media, desc, go);
+  div.append(kind, title, media);
+  if (badges.childElementCount) div.append(badges);
+  div.append(desc, go);
   return div;
 }
 
-try {
-  const res = await fetch('restrooms.json');
-  if (res.ok) {
-    const { restrooms = [] } = await res.json();
-    for (const r of restrooms) {
-      L.marker([r.lat, r.lng], { icon: wcIcon, zIndexOffset: 300, title: pick(r.name) })
+// Cada tipo se carga por separado: si un JSON falla, el resto (y la app) sigue funcionando
+await Promise.all(POI_TYPES.map(async (type) => {
+  try {
+    const res = await fetch(type.file);
+    if (!res.ok) return;
+    const items = (await res.json())[type.list] ?? [];
+    const icon = poiIcon(type);
+    for (const r of items) {
+      L.marker([r.lat, r.lng], { icon, zIndexOffset: 300, title: pick(r.name) })
         .bindTooltip(() => pick(r.name), { direction: 'top', offset: [0, -14] })
-        .bindPopup(() => restroomPopup(r), { maxWidth: 260 })
+        .bindPopup(() => poiPopup(type, r), { maxWidth: 260 })
         .addTo(map);
     }
+  } catch (err) {
+    console.warn(`No se pudo cargar ${type.file}:`, err);
   }
-} catch (err) {
-  console.warn('No se pudieron cargar los baños:', err); // la app sigue funcionando sin ellos
-}
+}));
 
 // ---------- Ubicación del usuario ----------
 // Al entrar se pide la ubicación: se marca al usuario, se busca el landmark más

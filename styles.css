@@ -260,13 +260,12 @@ select {
 }
 
 /* ---------- Baños ---------- */
-.wc-pin {
+.poi-pin {
   display: grid;
   place-items: center;
   width: 30px;
   height: 30px;
   border-radius: 8px;
-  background: #00796b;
   border: 2px solid #fff;
   box-shadow: 0 1px 4px rgba(0, 0, 0, .4);
   color: #fff;
@@ -274,6 +273,19 @@ select {
   font-size: 11px;
   letter-spacing: .02em;
 }
+.wc-pin { background: #00796b; }
+.cafe-pin { background: #8d4f1f; font-size: 15px; }
+.poi-cafe .poi-kind { color: #8d4f1f !important; }
+
+.poi-badges { display: flex; flex-wrap: wrap; gap: .3rem; margin-top: .5rem; }
+.poi-badge {
+  font-size: .75rem;
+  font-weight: 700;
+  padding: .15rem .45rem;
+  border-radius: 999px;
+}
+.poi-badge.ok { background: #e8f5ec; color: #1e6b34; }
+.poi-badge.no { background: #fdecea; color: #a1281d; }
 .poi-popup { width: 230px; }
 .poi-popup .poi-kind {
   font-size: .72rem;
