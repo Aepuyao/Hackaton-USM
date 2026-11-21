@@ -4,7 +4,7 @@ import {
   loadGraph, nodesById, route, pathNodes, edgeLatLngs, totalSeconds, nearestNode, distanceMeters,
 } from './js/route.js';
 import { createPlayer } from './js/player.js';
-import { LANGS, initLang, getLang, setLang, onLangChange, t, nodeName, applyStatic } from './js/i18n.js';
+import { LANGS, initLang, getLang, setLang, onLangChange, t, nodeName, pick, applyStatic } from './js/i18n.js';
 
 const $ = (id) => document.getElementById(id);
 const COLORS = { pending: '#2f6fb3', active: '#f28c28', done: '#8a9bb0' };
@@ -352,6 +352,127 @@ els.form.addEventListener('submit', (ev) => {
     els.player.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 });
+
+// ---------- Baños (restrooms.json) ----------
+// Pines "WC" con foto y descripción. No forman parte del grafo: "Cómo llegar"
+// lleva al landmark más cercano al baño.
+const wcIcon = L.divIcon({ className: '', html: '<div class="wc-pin">WC</div>', iconSize: [30, 30], iconAnchor: [15, 15], popupAnchor: [0, -14] });
+
+// Etiqueta de una foto: "Piso 1 · Hombres", "Mujeres", "" (baño para todos)
+function photoLabel(p) {
+  const parts = [];
+  if (p.floor != null) parts.push(t('floorN', { n: p.floor }));
+  if (p.gender === 'men' || p.gender === 'women') parts.push(t(p.gender));
+  return parts.join(' · ');
+}
+
+// Fotos con flechas ‹ › si hay más de una; "Foto pendiente" si no hay o no carga
+function photoCarousel(photos, alt) {
+  const box = document.createElement('div');
+  box.className = 'poi-media';
+
+  const noPhoto = () => {
+    const d = document.createElement('div');
+    d.className = 'poi-nophoto';
+    d.textContent = t('photoPending');
+    return d;
+  };
+  if (photos.length === 0) {
+    box.appendChild(noPhoto());
+    return box;
+  }
+
+  let i = 0;
+  const frame = document.createElement('div');
+  frame.className = 'poi-frame';
+  const caption = document.createElement('div');
+  caption.className = 'poi-caption';
+
+  function show() {
+    const p = photos[i];
+    const img = document.createElement('img');
+    img.src = p.src;
+    img.alt = [alt, photoLabel(p)].filter(Boolean).join(' – ');
+    img.addEventListener('error', () => img.replaceWith(noPhoto()));
+    frame.replaceChildren(img);
+    const label = photoLabel(p);
+    const count = photos.length > 1 ? `${i + 1}/${photos.length}` : '';
+    caption.textContent = [label, count].filter(Boolean).join('  ·  ');
+    caption.hidden = !caption.textContent;
+  }
+
+  box.append(frame, caption);
+  if (photos.length > 1) {
+    for (const [dir, symbol] of [[-1, '‹'], [1, '›']]) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `poi-nav ${dir < 0 ? 'prev' : 'next'}`;
+      btn.textContent = symbol;
+      btn.setAttribute('aria-label', symbol);
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        i = (i + dir + photos.length) % photos.length;
+        show();
+      });
+      frame.after(btn);
+    }
+    // Precargar el resto para que el carrusel no parpadee
+    photos.slice(1).forEach((p) => { new Image().src = p.src; });
+  }
+  show();
+  return box;
+}
+
+function restroomPopup(r) {
+  const div = document.createElement('div');
+  div.className = 'poi-popup';
+
+  const kind = document.createElement('div');
+  kind.className = 'poi-kind';
+  kind.textContent = t('restroom');
+
+  const title = document.createElement('h3');
+  title.textContent = pick(r.name);
+
+  const media = photoCarousel(r.photos ?? [], pick(r.name));
+
+  const desc = document.createElement('p');
+  desc.textContent = pick(r.description);
+
+  const go = document.createElement('button');
+  go.type = 'button';
+  go.className = 'poi-go';
+  go.textContent = t('directions');
+  go.addEventListener('click', () => {
+    // `node` en restrooms.json fuerza el landmark; si no, el más cercano
+    const target = byId.get(r.node) ?? nearestNode(graph, r.lat, r.lng)?.node;
+    if (!target) return;
+    els.to.value = target.id;
+    syncSelects();
+    map.closePopup();
+    // Si ya hay origen, se arma la ruta de inmediato (el clic cuenta como gesto para el video)
+    if (!els.go.disabled) els.form.requestSubmit();
+    else els.from.focus();
+  });
+
+  div.append(kind, title, media, desc, go);
+  return div;
+}
+
+try {
+  const res = await fetch('restrooms.json');
+  if (res.ok) {
+    const { restrooms = [] } = await res.json();
+    for (const r of restrooms) {
+      L.marker([r.lat, r.lng], { icon: wcIcon, zIndexOffset: 300, title: pick(r.name) })
+        .bindTooltip(() => pick(r.name), { direction: 'top', offset: [0, -14] })
+        .bindPopup(() => restroomPopup(r), { maxWidth: 260 })
+        .addTo(map);
+    }
+  }
+} catch (err) {
+  console.warn('No se pudieron cargar los baños:', err); // la app sigue funcionando sin ellos
+}
 
 // ---------- Ubicación del usuario ----------
 // Al entrar se pide la ubicación: se marca al usuario, se busca el landmark más

@@ -65,6 +65,14 @@ player.play(edges);
 
 Los `<video>` que crea el reproductor tienen la clase `route-video`, así que se pueden estilar con CSS (por ejemplo `width: 100%`).
 
+## Baños
+
+Pines "WC" definidos en `restrooms.json` (no forman parte del grafo de rutas). Cada uno tiene
+`lat`, `lng`, `photos` (lista, con piso y hombres/mujeres opcionales) y `name` / `description`
+en los 4 idiomas. Con varias fotos, el popup muestra un carrusel. El botón "Cómo llegar" del
+popup lleva al landmark más cercano; para forzar otro, agregar `"node": "<id del nodo>"`.
+Las fotos van en `img/` (ver `img/LEEME.md`).
+
 ## Idiomas
 
 La página está en español, inglés, francés y alemán (selector 🌐 arriba a la derecha).

@@ -38,6 +38,12 @@ export const STRINGS = {
     geoUnsupported: 'Tu navegador no permite obtener la ubicación.',
     onFoot: 'a pie, sin video',
     walkToDest: 'Tu destino es el punto más cercano: camina {m} m hasta {name}.',
+    restroom: 'Baño',
+    photoPending: 'Foto pendiente',
+    directions: 'Cómo llegar',
+    floorN: 'Piso {n}',
+    men: 'Hombres',
+    women: 'Mujeres',
   },
   en: {
     pageTitle: 'Find your way · USM Casa Central Campus',
@@ -71,6 +77,12 @@ export const STRINGS = {
     geoUnsupported: 'Your browser does not support location.',
     onFoot: 'on foot, no video',
     walkToDest: 'Your destination is the nearest point: walk {m} m to {name}.',
+    restroom: 'Restroom',
+    photoPending: 'Photo coming soon',
+    directions: 'Directions',
+    floorN: 'Floor {n}',
+    men: 'Men',
+    women: 'Women',
   },
   fr: {
     pageTitle: 'Itinéraire · Campus Casa Central USM',
@@ -104,6 +116,12 @@ export const STRINGS = {
     geoUnsupported: 'Votre navigateur ne permet pas la géolocalisation.',
     onFoot: 'à pied, sans vidéo',
     walkToDest: "Votre destination est le point le plus proche : marchez {m} m jusqu'à : {name}.",
+    restroom: 'Toilettes',
+    photoPending: 'Photo à venir',
+    directions: "Comment s'y rendre",
+    floorN: 'Niveau {n}',
+    men: 'Hommes',
+    women: 'Femmes',
   },
   de: {
     pageTitle: 'Wegbeschreibung · Campus Casa Central USM',
@@ -137,6 +155,12 @@ export const STRINGS = {
     geoUnsupported: 'Ihr Browser unterstützt keine Standortbestimmung.',
     onFoot: 'zu Fuß, ohne Video',
     walkToDest: 'Ihr Ziel ist der nächste Punkt: Gehen Sie {m} m bis {name}.',
+    restroom: 'Toilette',
+    photoPending: 'Foto folgt',
+    directions: 'Weg anzeigen',
+    floorN: 'Ebene {n}',
+    men: 'Herren',
+    women: 'Damen',
   },
 };
 
@@ -178,6 +202,13 @@ export function onLangChange(fn) {
 export function t(key, params = {}) {
   const s = STRINGS[current][key] ?? STRINGS[DEFAULT][key] ?? key;
   return s.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
+}
+
+/** Texto de un objeto { es, en, fr, de } en el idioma actual (cae al español). */
+export function pick(texts) {
+  if (!texts) return '';
+  if (typeof texts === 'string') return texts;
+  return texts[current] ?? texts[DEFAULT] ?? '';
 }
 
 /** Nombre de un lugar en el idioma actual (cae al nombre en español). */
