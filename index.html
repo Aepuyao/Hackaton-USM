@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Cómo llegar · Campus Casa Central USM</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1><span data-i18n="title">Cómo llegar</span> <span class="sub">· Casa Central USM</span></h1>
+    <label class="lang">
+      <span class="lang-icon" aria-hidden="true">🌐</span>
+      <select id="lang" data-i18n-attr="aria-label:language" aria-label="Idioma"></select>
+    </label>
+  </header>
+
+  <main class="layout">
+    <div id="map" class="map" data-i18n-attr="aria-label:mapLabel" aria-label="Mapa del campus"></div>
+
+    <section class="panel">
+      <form id="route-form" class="route-form">
+        <label>
+          <span data-i18n="from">Desde</span>
+          <select id="from" required>
+            <option value="" data-i18n="fromPlaceholder">Elige el origen</option>
+          </select>
+        </label>
+        <button type="button" id="swap" class="swap" data-i18n-attr="title:swap,aria-label:swap" title="Invertir origen y destino" aria-label="Invertir origen y destino">⇅</button>
+        <label>
+          <span data-i18n="to">Hasta</span>
+          <select id="to" required>
+            <option value="" data-i18n="toPlaceholder">Elige el destino</option>
+          </select>
+        </label>
+        <button type="submit" id="go" class="go" disabled data-i18n="go">Ir</button>
+      </form>
+
+      <p id="geo-message" class="message geo-message" role="status"></p>
+      <p id="message" class="message" role="status"></p>
+
+      <div id="player" class="player">
+        <div id="overlay" class="overlay"></div>
+        <p id="player-empty" class="player-empty" data-i18n-html="playerEmpty">Elige origen y destino y presiona <strong>Ir</strong> para ver el recorrido.</p>
+      </div>
+
+      <ol id="steps" class="steps"></ol>
+    </section>
+  </main>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
