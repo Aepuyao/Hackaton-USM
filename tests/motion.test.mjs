@@ -143,3 +143,83 @@ test('la cola sincronizada espera la llegada geográfica aunque termine el archi
   second.dispatchEvent(new Event('ended'));
   assert.equal(arrivals, 1);
 });
+
+test('dos lecturas de 3,5 km/h confirman una caminata aunque el GPS redondee la posición', () => {
+  const detector = createMotionDetector();
+  for (const time of [0, 3, 6]) detector.update({ ...fix(0, time, 15), speed: 0 });
+  assert.equal(detector.update({ ...fix(1, 7, 15), speed: 3.5 / 3.6 }), false);
+  assert.equal(detector.update({ ...fix(2, 8, 15), speed: 3.5 / 3.6 }), true);
+  assert.equal(detector.update({ ...fix(2, 9, 15), speed: 0 }), true);
+  assert.equal(detector.update({ ...fix(2, 14, 15), speed: 0 }), false);
+});
+
+test('la velocidad proyectada confirma pasos pequeños cuando la posición es precisa', () => {
+  const detector = createMotionDetector();
+  detector.update(fix(0, 0));
+  assert.equal(detector.update(fix(1, 1), 1), null);
+  assert.equal(detector.update(fix(2, 2), 1), true);
+});
+
+test('la vista previa arranca sin movimiento y luego reanuda desde el mismo fotograma', (context) => {
+  const oldDocument = globalThis.document;
+  const videos = [];
+  const container = new EventTarget();
+  container.appendChild = video => videos.push(video);
+  globalThis.document = { createElement: () => new TestVideo() };
+  context.after(() => { globalThis.document = oldDocument; });
+  let covered = 0;
+  const player = createPlayer({
+    container, graph: { nodes: [] },
+    getRouteProgress: () => ({ distance: 60, covered, speed: 1.2, arrived: false }),
+  });
+  for (const video of videos) video.duration = 30;
+  player.setMotionControl(true);
+  player.play([{ from: 'a', to: 'b', video: 'ab.mp4' }], { preview: 4 });
+  const [video] = videos;
+  assert.equal(player.isPreviewing(), true);
+  assert.equal(video.paused, false);
+  assert.equal(video.playbackRate, 1);
+  video.currentTime = 4;
+  video.dispatchEvent(new Event('timeupdate'));
+  assert.equal(player.isPreviewing(), false);
+  assert.equal(video.paused, true);
+  covered = 1;
+  player.setMoving(true);
+  assert.equal(video.paused, false);
+  assert.equal(video.currentTime, 4);
+  assert.ok(video.playbackRate < 1);
+  player.stop();
+  assert.equal(player.isPreviewing(), false);
+});
+
+test('el siguiente tramo ofrece su propia vista previa a 1× aunque el usuario esté detenido', (context) => {
+  const oldDocument = globalThis.document;
+  const videos = [];
+  const container = new EventTarget();
+  container.appendChild = video => videos.push(video);
+  globalThis.document = { createElement: () => new TestVideo() };
+  context.after(() => { globalThis.document = oldDocument; });
+  let reachedFirst = false;
+  const player = createPlayer({
+    container, graph: { nodes: [] },
+    getRouteProgress: index => ({
+      distance: 60, covered: reachedFirst && index === 0 ? 60 : 0, speed: 0,
+      arrived: reachedFirst && index === 0,
+    }),
+  });
+  videos.forEach(video => { video.duration = 30; });
+  player.setMotionControl(true);
+  player.play([{ from: 'a', to: 'b', video: 'ab.mp4' }, { from: 'b', to: 'c', video: 'bc.mp4' }], { preview: 17 });
+  videos[0].currentTime = 17;
+  videos[0].dispatchEvent(new Event('timeupdate'));
+  reachedFirst = true;
+  player.refreshPace();
+  assert.equal(player.index, 1);
+  assert.equal(player.isPreviewing(), true);
+  assert.equal(videos[1].paused, false);
+  assert.equal(videos[1].playbackRate, 1);
+  videos[1].currentTime = 17;
+  videos[1].dispatchEvent(new Event('timeupdate'));
+  assert.equal(player.isPreviewing(), false);
+  assert.equal(videos[1].paused, true);
+});

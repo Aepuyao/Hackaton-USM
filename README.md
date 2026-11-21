@@ -127,3 +127,7 @@ El recorrido se reproduce normalmente al abrir la app. Activa **Reproducción au
 Para probarlo sin caminar, abre [http://localhost:8000/?mockGps=1](http://localhost:8000/?mockGps=1). Elige un recorrido, pulsa **Ir**, activa el interruptor y usa **Mover** y **Detener**. La simulación sigue la línea del recorrido elegido y el indicador cambia después de varias lecturas. Puedes ajustar la velocidad desde el mismo panel.
 
 Con el control por movimiento activo, la app mide la polilínea y muestra la distancia restante y la velocidad de avance. La duración de cada clip representa la longitud de su tramo. El reproductor ajusta la tasa según la distancia pendiente y la velocidad GPS, y pasa al siguiente clip cuando la ubicación alcanza el fin del tramo. La llegada se estima dentro de la precisión del GPS. Para que el recorrido se vea natural, graba cada clip de extremo a extremo a un ritmo uniforme.
+
+Con el control por movimiento activo, cada tramo empieza con una vista previa de 17 segundos a 1× para orientar la salida. Los clips breves muestran una vista previa proporcional. Después, la reproducción continúa desde ese punto según el avance GPS.
+
+El seguimiento acepta una desviación lateral de 18 a 30 m según la precisión del GPS. Una vez sobre el recorrido, se toleran 5 m adicionales antes de pausarlo por desvío.

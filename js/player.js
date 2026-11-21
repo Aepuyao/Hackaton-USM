@@ -25,7 +25,7 @@ const DEFAULT_TEXTS = {
 const defaultT = (key, params = {}) =>
   (DEFAULT_TEXTS[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
 
-export function createPlayer({ container, overlay, graph, onSegment, onFinish, t = defaultT, nameOf, getRouteProgress } = {}) {
+export function createPlayer({ container, overlay, graph, onSegment, onFinish, onPreviewChange, t = defaultT, nameOf, getRouteProgress } = {}) {
   const byId = nodesById(graph);
   nameOf ??= (id) => byId.get(id)?.name ?? id;
   let overlayText = null; // función que arma el texto actual del overlay
@@ -39,6 +39,9 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
   let motionControlled = false;
   let moving = false;
   let playAttempt = 0;
+  let previewSeconds = 0;
+  let previewPerSegment = 0;
+  let previewStart = null;
   const failedVideos = new WeakSet();
 
   function makeVideo() {
@@ -51,11 +54,15 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
     v.hidden = true;
     v.className = 'route-video';
     v.addEventListener('ended', () => {
-      if (isCurrent(v) && !(motionControlled && getRouteProgress)) advance();
+      if (!isCurrent(v)) return;
+      if (previewSeconds) {
+        endPreview();
+        syncPlayback();
+      } else if (!(motionControlled && getRouteProgress)) advance();
     });
     for (const event of ['loadedmetadata', 'timeupdate']) {
       v.addEventListener(event, () => {
-        if (isCurrent(v) && motionControlled && getRouteProgress) syncPlayback();
+        if (isCurrent(v) && (previewSeconds || (motionControlled && getRouteProgress))) syncPlayback();
       });
     }
     v.addEventListener('error', () => {
@@ -94,6 +101,8 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
   function showCurrent() {
     const v = els[active];
     const e = queue[index];
+    previewStart = null;
+    previewSeconds = motionControlled ? previewPerSegment : 0;
     v.hidden = false;
     els[1 - active].hidden = true;
     const i = index + 1;
@@ -106,18 +115,31 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
       return;
     }
     syncPlayback();
+    if (previewSeconds) onPreviewChange?.();
   }
 
   function reportFailure(v) {
     if (!failedVideos.has(v)) console.warn('Clip con error:', v.currentSrc || v.src);
     failedVideos.add(v);
+    endPreview();
     syncPlayback();
+  }
+
+  function endPreview() {
+    if (!previewSeconds) return;
+    previewSeconds = 0;
+    onPreviewChange?.();
   }
 
   function syncPlayback() {
     const v = els[active];
     if (!isCurrent(v)) return;
-    const paced = motionControlled && getRouteProgress;
+    const previewLimit = v.duration < previewSeconds ? v.duration * .8 : previewSeconds;
+    if (previewSeconds && v.currentTime >= previewLimit) {
+      previewStart = { time: v.currentTime, covered: getRouteProgress?.(index)?.covered };
+      endPreview();
+    }
+    const paced = !previewSeconds && motionControlled && getRouteProgress;
     const progress = paced ? getRouteProgress(index) : null;
     const failed = failedVideos.has(v);
     if (progress?.arrived && (failed || Number.isFinite(v.duration))) {
@@ -130,8 +152,16 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
       if (!paced) advance();
       return;
     }
-    const pace = paced ? videoPace(progress, v.duration, v.currentTime) : null;
-    if ((motionControlled && !moving) || (paced && (!pace || pace.hold || v.ended))) {
+    let pace = paced ? videoPace(progress, v.duration, v.currentTime) : null;
+    if (progress && previewStart) {
+      previewStart.covered ??= progress.covered;
+      pace = videoPace({
+        ...progress,
+        distance: progress.distance - previewStart.covered,
+        covered: Math.max(0, progress.covered - previewStart.covered),
+      }, v.duration - previewStart.time, v.currentTime - previewStart.time);
+    }
+    if ((!previewSeconds && motionControlled && !moving) || (paced && (!pace || pace.hold || v.ended))) {
       playAttempt += 1;
       if (!v.paused) v.pause();
       return;
@@ -165,6 +195,10 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
   function setMotionControl(enabled) {
     if (motionControlled === enabled) return;
     motionControlled = enabled;
+    if (!enabled) {
+      previewStart = null;
+      endPreview();
+    }
     syncPlayback();
   }
 
@@ -195,7 +229,7 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
     onFinish?.();
   }
 
-  function play(edges) {
+  function play(edges, { preview = 0 } = {}) {
     stop();
     queue = edges ?? [];
     if (queue.length === 0) {
@@ -204,6 +238,7 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
     }
     index = 0;
     active = 0;
+    previewPerSegment = preview;
     load(els[0], 0);
     load(els[1], 1);
     showCurrent();
@@ -213,6 +248,9 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
     playAttempt += 1;
     queue = [];
     index = -1;
+    previewPerSegment = 0;
+    previewStart = null;
+    endPreview();
     for (const v of els) {
       v.pause();
       v.removeAttribute('src');
@@ -228,6 +266,7 @@ export function createPlayer({ container, overlay, graph, onSegment, onFinish, t
   return {
     play, stop, refresh, setMotionControl, setMoving,
     refreshPace() { if (motionControlled && getRouteProgress) syncPlayback(); },
+    isPreviewing: () => previewSeconds > 0,
     isMotionControlled: () => motionControlled,
     get index() { return index; },
   };

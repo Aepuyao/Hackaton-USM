@@ -4,6 +4,7 @@ export const FIX_TIMEOUT_MS = 20_000;
 const MAX_ACCURACY_METERS = 25;
 const STOP_DWELL_MS = 6_000;
 const CONFIRMATIONS = 2;
+const START_SPEED_MPS = .65;
 
 export function readMotionFix(position) {
   const { latitude: lat, longitude: lng, accuracy, speed } = position.coords;
@@ -26,7 +27,7 @@ export function createMotionDetector({ threshold = 5 } = {}) {
     moving = null;
   }
 
-  function update(fix) {
+  function update(fix, projectedSpeed = 0) {
     if (previous && fix.timestamp <= previous.timestamp) return moving;
     if (!previous || fix.timestamp - previous.timestamp >= FIX_TIMEOUT_MS) {
       reset();
@@ -46,8 +47,13 @@ export function createMotionDetector({ threshold = 5 } = {}) {
     }
     previous = fix;
 
+    const gpsSpeed = Number.isFinite(fix.speed) && fix.speed >= 0 && fix.speed <= 8 ? fix.speed : null;
+    const walking = gpsSpeed === null
+      ? fix.accuracy <= 8 && step >= .5 && projectedSpeed >= START_SPEED_MPS
+      : gpsSpeed >= START_SPEED_MPS;
+
     // El ancla permite acumular pasos pequeños hasta superar el ruido.
-    if (displacement >= noise) {
+    if (walking || (gpsSpeed !== 0 && displacement >= noise)) {
       quietSamples = 0;
       if (++confirmations >= CONFIRMATIONS) {
         moving = true;

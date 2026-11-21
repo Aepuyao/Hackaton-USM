@@ -200,6 +200,7 @@ const player = createPlayer({
   nameOf,
   onSegment: highlightSegment,
   onFinish: finishRoute,
+  onPreviewChange: renderMotion,
   getRouteProgress: (index) => routeProgress?.at(index),
 });
 
@@ -211,7 +212,8 @@ let fixTimer;
 let lastMotionTimestamp = -Infinity;
 
 function renderMotion() {
-  const key = motionUnavailable ? 'motionUnavailable'
+  const key = player.isPreviewing() ? 'motionPreview'
+    : motionUnavailable ? 'motionUnavailable'
     : moving === null ? 'motionWaiting'
     : moving && routeProgress && player.index >= 0 && player.index < currentEdges.length && !routeProgress.at(player.index)
       ? 'motionFollowRoute'
@@ -229,7 +231,7 @@ function renderMotion() {
     els.motionProgress.textContent = t('motionProgress', {
       total: meters.format(metrics.total),
       remaining: meters.format(activeIndex === currentEdges.length ? 0 : metrics.remaining),
-      speed: speed.format(metrics.speed * 3.6),
+      speed: speed.format(moving === false ? 0 : metrics.speed * 3.6),
     });
   }
 }
@@ -270,7 +272,7 @@ function updateMotion(position) {
   routeProgress?.update(fix);
   motionUnavailable = false;
   motionFallback = false;
-  moving = motionDetector.update(fix);
+  moving = motionDetector.update(fix, routeProgress?.metrics()?.speed);
   syncMotion();
 }
 
@@ -455,7 +457,7 @@ els.form.addEventListener('submit', (ev) => {
   drawRoute(edges, here);
   renderSteps();
   els.playerEmpty.hidden = true;
-  player.play(edges); // dentro del submit: cuenta como gesto del usuario (autoplay en celular)
+  player.play(edges, { preview: 17 }); // dentro del submit: gesto para autoplay en celular
   renderMotion();
 
   // En celular, bajar hasta el video

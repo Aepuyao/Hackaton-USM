@@ -55,3 +55,24 @@ test('ajusta la tasa al tiempo restante y espera si el video llega antes que el 
   assert.equal(videoPace(progress, 1, 0).rate, .0625);
   assert.equal(videoPace(progress, Number.NaN, 0), null);
 });
+
+test('tolera desfase lateral y cruza el final sin exigir coincidir con la línea', () => {
+  const progress = createRouteProgress([[start, corner]]);
+  const offset = meters => meters / (111195 * Math.cos(start[0] * Math.PI / 180));
+  const location = (lat, meters, second) => ({
+    lat, lng: start[1] + offset(meters), accuracy: 3, speed: 1, timestamp: second * 1000,
+  });
+  progress.update(location(start[0], 15, 0));
+  assert.ok(progress.at(0));
+  progress.update(location(start[0] + .00005, 21, 2));
+  assert.ok(progress.at(0));
+  assert.equal(progress.at(0).arrived, false);
+  progress.update(location(start[0] + .00007, 26, 3));
+  assert.equal(progress.at(0), null);
+  progress.update(location(start[0] + .0001, 21, 4));
+  assert.equal(progress.at(0), null);
+  progress.update(location(corner[0] - .00001, 15, 5));
+  assert.equal(progress.at(0).arrived, false);
+  progress.update(location(corner[0] + .00001, 15, 6));
+  assert.equal(progress.at(0).arrived, true);
+});
