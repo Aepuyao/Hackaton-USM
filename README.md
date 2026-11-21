@@ -65,6 +65,14 @@ player.play(edges);
 
 Los `<video>` que crea el reproductor tienen la clase `route-video`, así que se pueden estilar con CSS (por ejemplo `width: 100%`).
 
+## Baños
+
+Pines "WC" definidos en `restrooms.json` (no forman parte del grafo de rutas). Cada uno tiene
+`lat`, `lng`, `photos` (lista, con piso y hombres/mujeres opcionales) y `name` / `description`
+en los 4 idiomas. Con varias fotos, el popup muestra un carrusel. El botón "Cómo llegar" del
+popup lleva al landmark más cercano; para forzar otro, agregar `"node": "<id del nodo>"`.
+Las fotos van en `img/` (ver `img/LEEME.md`).
+
 ## Idiomas
 
 La página está en español, inglés, francés y alemán (selector 🌐 arriba a la derecha).
@@ -80,7 +88,10 @@ forzar con `?lang=en`, `?lang=fr` o `?lang=de`.
 **Los nodos (landmarks) se editan a mano en `graph.json`; las aristas las genera
 `tools/build-walk-paths.py`** a partir de la red peatonal de OpenStreetMap
 (`tools/osm-ways.json`). Solo conecta landmarks vecinos: si el camino de X a Y pasa
-cerca de Z, la ruta va X → Z → Y. Después de agregar o mover un nodo:
+cerca de Z, la ruta va X → Z → Y. Los campos que se agregan a mano en una arista
+(`"stairs": true/false`, `"recorded": true`) se conservan al regenerar; `stairs` marca si el
+tramo tiene escaleras y la app avisa "Esta ruta tiene escaleras" / "Ruta sin escaleras".
+Después de agregar o mover un nodo:
 
 ```bash
 python3 tools/build-walk-paths.py  # regenera aristas (path + seconds)

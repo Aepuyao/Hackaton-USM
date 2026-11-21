@@ -1,0 +1,114 @@
+{
+  "restrooms": [
+    {
+      "id": "edificio_f",
+      "lat": -33.0349021,
+      "lng": -71.5967893,
+      "photos": [
+        {
+          "src": "img/edificio_f.jpeg"
+        }
+      ],
+      "name": {
+        "es": "Baños Edificio F",
+        "en": "Restrooms – Building F",
+        "fr": "Toilettes – Bâtiment F",
+        "de": "Toiletten – Gebäude F"
+      },
+      "description": {
+        "es": "Entrando al Edificio F por donde está la secretaría, en el piso 0.",
+        "en": "Enter Building F by the secretary's office; they are on floor 0.",
+        "fr": "En entrant dans le bâtiment F par le secrétariat, au niveau 0.",
+        "de": "In Gebäude F beim Sekretariat hinein, auf Ebene 0."
+      }
+    },
+    {
+      "id": "edificio_e",
+      "lat": -33.0353198,
+      "lng": -71.5961409,
+      "photos": [
+        {
+          "src": "img/edificio_e_hombre.jpeg",
+          "gender": "men"
+        },
+        {
+          "src": "img/edificio_e_mujer.jpeg",
+          "gender": "women"
+        }
+      ],
+      "name": {
+        "es": "Baños Edificio E",
+        "en": "Restrooms – Building E",
+        "fr": "Toilettes – Bâtiment E",
+        "de": "Toiletten – Gebäude E"
+      },
+      "description": {
+        "es": "En el primer piso, al fondo a la izquierda.",
+        "en": "On floor 1, at the far end on the left.",
+        "fr": "Au niveau 1, au fond à gauche.",
+        "de": "Auf Ebene 1, ganz hinten links."
+      }
+    },
+    {
+      "id": "edificio_a",
+      "lat": -33.0348223,
+      "lng": -71.5955209,
+      "photos": [
+        {
+          "src": "img/edificio_1a_hombre.jpeg",
+          "floor": 1,
+          "gender": "men"
+        },
+        {
+          "src": "img/edificio_1a_mujer.jpeg",
+          "floor": 1,
+          "gender": "women"
+        },
+        {
+          "src": "img/edificio_3a_hombre.jpeg",
+          "floor": 3,
+          "gender": "men"
+        },
+        {
+          "src": "img/edificio_3a_mujer.jpeg",
+          "floor": 3,
+          "gender": "women"
+        }
+      ],
+      "name": {
+        "es": "Baños Edificio A",
+        "en": "Restrooms – Building A",
+        "fr": "Toilettes – Bâtiment A",
+        "de": "Toiletten – Gebäude A"
+      },
+      "description": {
+        "es": "En el primer piso y también en el tercer piso.",
+        "en": "On floor 1 and also on floor 3.",
+        "fr": "Au niveau 1 et aussi au niveau 3.",
+        "de": "Auf Ebene 1 und auch auf Ebene 3."
+      }
+    },
+    {
+      "id": "patio_central",
+      "lat": -33.0354415,
+      "lng": -71.5956188,
+      "photos": [
+        {
+          "src": "img/patio_central.jpeg"
+        }
+      ],
+      "name": {
+        "es": "Baños Patio Central",
+        "en": "Restrooms – Central Courtyard",
+        "fr": "Toilettes – Cour centrale",
+        "de": "Toiletten – Zentraler Innenhof"
+      },
+      "description": {
+        "es": "A la derecha de la entrada al gimnasio, al lado de la sala de ocio.",
+        "en": "To the right of the gym entrance, next to the lounge (sala de ocio).",
+        "fr": "À droite de l'entrée du gymnase, à côté de la salle de détente.",
+        "de": "Rechts vom Eingang der Sporthalle, neben dem Aufenthaltsraum."
+      }
+    }
+  ]
+}

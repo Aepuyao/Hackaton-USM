@@ -40,6 +40,15 @@ export const STRINGS = {
     geoUnsupported: 'Tu navegador no permite obtener la ubicación.',
     onFoot: 'a pie, sin video',
     walkToDest: 'Tu destino es el punto más cercano: camina {m} m hasta {name}.',
+    restroom: 'Baño',
+    photoPending: 'Foto pendiente',
+    directions: 'Cómo llegar',
+    stairs: 'escaleras',
+    stairsYes: 'Esta ruta tiene escaleras ({n} de {total} tramos)',
+    stairsNo: 'Ruta sin escaleras',
+    floorN: 'Piso {n}',
+    men: 'Hombres',
+    women: 'Mujeres',
     motionControl: 'Reproducción automática por movimiento',
     motionMoving: 'Moviendo — reproduciendo',
     motionStopped: 'Detenido — video pausado',
@@ -91,6 +100,15 @@ export const STRINGS = {
     geoUnsupported: 'Your browser does not support location.',
     onFoot: 'on foot, no video',
     walkToDest: 'Your destination is the nearest point: walk {m} m to {name}.',
+    restroom: 'Restroom',
+    photoPending: 'Photo coming soon',
+    directions: 'Directions',
+    stairs: 'stairs',
+    stairsYes: 'This route has stairs ({n} of {total} legs)',
+    stairsNo: 'Step-free route',
+    floorN: 'Floor {n}',
+    men: 'Men',
+    women: 'Women',
     motionControl: 'Automatic playback based on movement',
     motionMoving: 'Moving — playing',
     motionStopped: 'Stopped — video paused',
@@ -142,6 +160,15 @@ export const STRINGS = {
     geoUnsupported: 'Votre navigateur ne permet pas la géolocalisation.',
     onFoot: 'à pied, sans vidéo',
     walkToDest: "Votre destination est le point le plus proche : marchez {m} m jusqu'à : {name}.",
+    restroom: 'Toilettes',
+    photoPending: 'Photo à venir',
+    directions: "Comment s'y rendre",
+    stairs: 'escaliers',
+    stairsYes: 'Cet itinéraire comporte des escaliers (étapes : {n} sur {total})',
+    stairsNo: 'Itinéraire sans escaliers',
+    floorN: 'Niveau {n}',
+    men: 'Hommes',
+    women: 'Femmes',
     motionControl: 'Lecture automatique selon le mouvement',
     motionMoving: 'En mouvement — lecture en cours',
     motionStopped: 'À l’arrêt — vidéo en pause',
@@ -193,6 +220,15 @@ export const STRINGS = {
     geoUnsupported: 'Ihr Browser unterstützt keine Standortbestimmung.',
     onFoot: 'zu Fuß, ohne Video',
     walkToDest: 'Ihr Ziel ist der nächste Punkt: Gehen Sie {m} m bis {name}.',
+    restroom: 'Toilette',
+    photoPending: 'Foto folgt',
+    directions: 'Weg anzeigen',
+    stairs: 'Treppen',
+    stairsYes: 'Diese Route hat Treppen ({n} von {total} Abschnitten)',
+    stairsNo: 'Route ohne Treppen',
+    floorN: 'Ebene {n}',
+    men: 'Herren',
+    women: 'Damen',
     motionControl: 'Automatische Wiedergabe bei Bewegung',
     motionMoving: 'In Bewegung — Wiedergabe läuft',
     motionStopped: 'Stillstand — Video pausiert',
@@ -250,6 +286,13 @@ export function onLangChange(fn) {
 export function t(key, params = {}) {
   const s = STRINGS[current][key] ?? STRINGS[DEFAULT][key] ?? key;
   return s.replace(/\{(\w+)\}/g, (_, k) => String(params[k] ?? ''));
+}
+
+/** Texto de un objeto { es, en, fr, de } en el idioma actual (cae al español). */
+export function pick(texts) {
+  if (!texts) return '';
+  if (typeof texts === 'string') return texts;
+  return texts[current] ?? texts[DEFAULT] ?? '';
 }
 
 /** Nombre de un lugar en el idioma actual (cae al nombre en español). */
