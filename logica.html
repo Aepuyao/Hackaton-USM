@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prueba de lógica – ruta + reproductor</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 720px; margin: 1rem auto; padding: 0 1rem; }
+    .controls { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    #player { position: relative; background: #000; aspect-ratio: 16 / 9; }
+    .route-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+    #overlay { position: absolute; left: .5rem; top: .5rem; background: rgba(0,0,0,.65); color: #fff;
+               padding: .25rem .5rem; border-radius: 4px; font-size: .9rem; }
+    #overlay:empty { display: none; }
+    ol li.active { font-weight: bold; color: #c00; }
+  </style>
+</head>
+<body>
+  <h1>Prueba de lógica</h1>
+  <p>Página de desarrollo de P2 (no es la UI final). Usa <code>js/route.js</code> y <code>js/player.js</code>.</p>
+
+  <div class="controls">
+    <select id="from"></select>
+    <select id="to"></select>
+    <button id="go">Ir</button>
+    <button id="stop">Detener</button>
+  </div>
+
+  <div id="player"><div id="overlay"></div></div>
+  <p id="summary"></p>
+  <ol id="steps"></ol>
+
+  <script type="module">
+    import { loadGraph, route, totalSeconds } from './js/route.js';
+    import { createPlayer } from './js/player.js';
+
+    const graph = await loadGraph('graph.json');
+    const $ = (id) => document.getElementById(id);
+
+    for (const sel of [$('from'), $('to')]) {
+      for (const n of graph.nodes) sel.add(new Option(n.name, n.id));
+    }
+    $('to').selectedIndex = graph.nodes.length - 1;
+
+    const player = createPlayer({
+      container: $('player'),
+      overlay: $('overlay'),
+      graph,
+      onSegment: (i) => [...$('steps').children].forEach((li, j) => li.classList.toggle('active', i === j)),
+      onFinish: () => [...$('steps').children].forEach((li) => li.classList.remove('active')),
+    });
+
+    $('go').addEventListener('click', () => {
+      const a = $('from').value, b = $('to').value;
+      if (a === b) { $('summary').textContent = 'Elige un destino distinto al origen.'; return; }
+      const edges = route(graph, a, b);
+      if (!edges) { $('summary').textContent = 'No hay camino.'; player.stop(); return; }
+      $('summary').textContent = `${edges.length} tramo(s), ~${totalSeconds(edges)} s caminando`;
+      $('steps').replaceChildren(...edges.map((e) => Object.assign(document.createElement('li'), { textContent: `${e.from} → ${e.to} (${e.seconds} s)` })));
+      player.play(edges);
+    });
+    $('stop').addEventListener('click', () => player.stop());
+  </script>
+</body>
+</html>

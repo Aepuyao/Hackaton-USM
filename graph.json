@@ -1,0 +1,23 @@
+{
+  "nodes": [
+    { "id": "acceso", "name": "Acceso principal Av. España", "lat": -33.03530, "lng": -71.59680 },
+    { "id": "biblioteca", "name": "Biblioteca Central", "lat": -33.03490, "lng": -71.59640 },
+    { "id": "casino", "name": "Casino", "lat": -33.03500, "lng": -71.59580 },
+    { "id": "aula_magna", "name": "Aula Magna", "lat": -33.03440, "lng": -71.59620 },
+    { "id": "edificio_p", "name": "Edificio P", "lat": -33.03410, "lng": -71.59560 }
+  ],
+  "edges": [
+    { "from": "acceso", "to": "biblioteca", "video": "videos/acceso__biblioteca.mp4", "seconds": 35 },
+    { "from": "biblioteca", "to": "acceso", "video": "videos/biblioteca__acceso.mp4", "seconds": 33 },
+    { "from": "acceso", "to": "casino", "video": "videos/acceso__casino.mp4", "seconds": 50 },
+    { "from": "casino", "to": "acceso", "video": "videos/casino__acceso.mp4", "seconds": 48 },
+    { "from": "biblioteca", "to": "casino", "video": "videos/biblioteca__casino.mp4", "seconds": 20 },
+    { "from": "casino", "to": "biblioteca", "video": "videos/casino__biblioteca.mp4", "seconds": 22 },
+    { "from": "biblioteca", "to": "aula_magna", "video": "videos/biblioteca__aula_magna.mp4", "seconds": 25 },
+    { "from": "aula_magna", "to": "biblioteca", "video": "videos/aula_magna__biblioteca.mp4", "seconds": 27 },
+    { "from": "aula_magna", "to": "edificio_p", "video": "videos/aula_magna__edificio_p.mp4", "seconds": 30 },
+    { "from": "edificio_p", "to": "aula_magna", "video": "videos/edificio_p__aula_magna.mp4", "seconds": 30 },
+    { "from": "casino", "to": "edificio_p", "video": "videos/casino__edificio_p.mp4", "seconds": 60 },
+    { "from": "edificio_p", "to": "casino", "video": "videos/edificio_p__casino.mp4", "seconds": 58 }
+  ]
+}
