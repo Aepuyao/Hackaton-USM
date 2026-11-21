@@ -47,6 +47,12 @@ for (const edge of edges) {
     problems.push(`Arista ${k}: seconds debe ser un número > 0`);
   }
 
+  if (edge.path !== undefined) {
+    const ok = Array.isArray(edge.path) && edge.path.length >= 2 &&
+      edge.path.every((p) => Array.isArray(p) && p.length === 2 && p.every((x) => typeof x === 'number'));
+    if (!ok) problems.push(`Arista ${k}: path debe ser una lista de [lat, lng] con al menos 2 puntos`);
+  }
+
   if (!edge.video) {
     problems.push(`Arista ${k}: falta video`);
   } else {

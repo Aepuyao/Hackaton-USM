@@ -1,6 +1,6 @@
 // UI: mapa (Leaflet), selector A→B, ruta y reproductor.
 // La lógica (Dijkstra y cola de videos) vive en js/route.js y js/player.js.
-import { loadGraph, nodesById, route, pathNodes, totalSeconds } from './js/route.js';
+import { loadGraph, nodesById, route, pathNodes, edgeLatLngs, totalSeconds } from './js/route.js';
 import { createPlayer } from './js/player.js';
 
 const $ = (id) => document.getElementById(id);
@@ -57,6 +57,26 @@ for (const node of graph.nodes) {
   }).addTo(map);
   marker.bindTooltip(node.name, { direction: 'top', offset: [0, -6] });
   marker.bindPopup(() => popupFor(node));
+}
+
+// Modo revisión (index.html?revisar): dibuja todos los tramos.
+// Azul = recorrido real por caminos de OSM · rojo punteado = línea recta, falta confirmar.
+if (new URLSearchParams(location.search).has('revisar')) {
+  const seen = new Set();
+  for (const e of graph.edges) {
+    const key = [e.from, e.to].sort().join('|');
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const real = Array.isArray(e.path);
+    L.polyline(edgeLatLngs(graph, e), {
+      color: real ? '#2f6fb3' : '#d93025',
+      weight: 4,
+      opacity: 0.8,
+      dashArray: real ? null : '6 6',
+    }).bindTooltip(`${byId.get(e.from).name} ↔ ${byId.get(e.to).name} · ${e.seconds} s`, { sticky: true })
+      .addTo(map);
+  }
+  showMessage('Modo revisión: azul = camino real · rojo punteado = recto, falta confirmar');
 }
 
 // Popup con atajos "Salir de aquí" / "Ir aquí"
@@ -136,15 +156,13 @@ function drawRoute(edges) {
   hereMarker = null;
 
   const nodes = pathNodes(graph, edges);
-  const latlngs = nodes.map((n) => [n.lat, n.lng]);
+  const latlngs = edges.flatMap((e) => edgeLatLngs(graph, e));
 
   // Borde blanco debajo para que la línea se lea sobre cualquier fondo
   L.polyline(latlngs, { color: '#fff', weight: 10, opacity: 0.9 }).addTo(routeLayer);
 
   segments = edges.map((e) => {
-    const a = byId.get(e.from);
-    const b = byId.get(e.to);
-    return L.polyline([[a.lat, a.lng], [b.lat, b.lng]], {
+    return L.polyline(edgeLatLngs(graph, e), {
       color: COLORS.pending,
       weight: 6,
       lineCap: 'round',

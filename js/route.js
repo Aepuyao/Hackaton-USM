@@ -68,6 +68,18 @@ export function pathNodes(graph, edges) {
   return [edges[0].from, ...edges.map((e) => e.to)].map((id) => byId.get(id));
 }
 
+/**
+ * Puntos [lat, lng] por donde se camina un tramo.
+ * Usa `edge.path` si existe (recorrido real); si no, la recta entre los nodos.
+ */
+export function edgeLatLngs(graph, edge) {
+  if (Array.isArray(edge.path) && edge.path.length >= 2) return edge.path;
+  const byId = nodesById(graph);
+  const a = byId.get(edge.from);
+  const b = byId.get(edge.to);
+  return [[a.lat, a.lng], [b.lat, b.lng]];
+}
+
 /** Duración total del camino en segundos. */
 export function totalSeconds(edges) {
   return (edges ?? []).reduce((s, e) => s + e.seconds, 0);

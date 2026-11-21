@@ -58,6 +58,19 @@ Los `<video>` que crea el reproductor tienen la clase `route-video`, así que se
 
 ## Comandos útiles
 
+**Los nodos (landmarks) se editan a mano en `graph.json`; las aristas las genera
+`tools/build-walk-paths.py`** a partir de la red peatonal de OpenStreetMap
+(`tools/osm-ways.json`). Solo conecta landmarks vecinos: si el camino de X a Y pasa
+cerca de Z, la ruta va X → Z → Y. Después de agregar o mover un nodo:
+
+```bash
+python3 tools/build-walk-paths.py  # regenera aristas (path + seconds)
+bash tools/make-mock-videos.sh     # clips de relleno para aristas nuevas
+node tools/validate-graph.mjs
+```
+
+Para revisar todos los tramos en el mapa: `http://localhost:8000/?revisar`.
+
 ```bash
 node --test 'tests/*.test.mjs'     # tests de Dijkstra
 node tools/validate-graph.mjs      # revisar graph.json y videos
